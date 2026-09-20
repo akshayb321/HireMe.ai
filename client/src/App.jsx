@@ -1,32 +1,59 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
+// Layout
+import MainLayout from "./layouts/MainLayout/MainLayout";
+
+// Auth Pages
 import Login from "./pages/Auth/Login";
 import Signup from "./pages/Auth/Signup";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
-import Dashboard from "./pages/Dashboard/dashboard";
 
-import "./App.css";
+// Main Pages
+import Dashboard from "./pages/Dashboard/Dashboard";
+import PastInterviews from "./pages/PastInterviews/PastInterviews";
+import InterviewReport from "./pages/InterviewReport/InterviewReport";
+import ATSScore from "./pages/ATSScore/ATSScore";
+import LiveInterview from "./pages/LiveInterview/LiveInterview";
+import InterviewSetup from "./pages/InterviewSetup/InterviewSetup";
 
-function App() {
+const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Default route */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+    <Routes>
+      {/* =========================
+          AUTH ROUTES
+      ========================= */}
 
-        {/* Authentication routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/auth/login" element={<Login />} />
 
-        {/* Main application route */}
+      <Route path="/auth/signup" element={<Signup />} />
+
+      <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+
+      {/* =========================
+          MAIN APPLICATION ROUTES
+      ========================= */}
+
+      <Route element={<MainLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Fallback route - always keep this last */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
+        <Route path="/interviews" element={<PastInterviews />} />
+
+        <Route path="/interviews/:id" element={<InterviewReport />} />
+
+        <Route path="/ats-score" element={<ATSScore />} />
+
+        <Route path="/interview-setup" element={<InterviewSetup />} />
+
+        <Route path="/interview/:id" element={<LiveInterview />} />
+      </Route>
+
+      {/* =========================
+          DEFAULT ROUTE
+      ========================= */}
+
+      <Route path="/" element={<Navigate to="/auth/login" replace />} />
+    </Routes>
   );
-}
+};
 
 export default App;

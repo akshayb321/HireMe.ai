@@ -1,0 +1,19 @@
+/* =========================
+   MAIN LAYOUT
+========================= */
+
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+/* =========================
+   PAGE CONTENT
+========================= */
+
+.main-layout-content {
+  flex: 1;
+  width: 100%;
+}
