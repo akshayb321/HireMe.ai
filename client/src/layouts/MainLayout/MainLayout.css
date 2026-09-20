@@ -16,4 +16,17 @@
 .main-layout-content {
   flex: 1;
   width: 100%;
+  padding-top: 76px;
+}
+
+@media (max-width: 950px) {
+  .main-layout-content {
+    padding-top: 70px;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-layout-content {
+    padding-top: 66px;
+  }
 }

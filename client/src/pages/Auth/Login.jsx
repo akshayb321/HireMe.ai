@@ -45,6 +45,8 @@ function Login() {
         email: formData.email.trim(),
         password: formData.password,
       });
+      localStorage.setItem("token", response.data.jwtToken);
+      localStorage.setItem("username", response.data.user.name);
 
       toast.success(response.data.message || "Login successful");
 

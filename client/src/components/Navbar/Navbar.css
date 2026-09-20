@@ -9,6 +9,10 @@
 
   position: relative;
   z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  box-shadow: 0 4px 16px rgba(25, 22, 45, 0.06);
 }
 
 /* =========================

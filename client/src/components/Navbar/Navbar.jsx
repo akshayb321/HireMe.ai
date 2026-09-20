@@ -6,15 +6,16 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Temporary user data
-  // Later API/Auth Context se aayega
-  const userName = "Akshay Bachhav";
+  // Logged-in user's full name from localStorage
+  const userName = localStorage.getItem("username") || "User";
 
   const firstName = userName.split(" ")[0];
   const avatarLetter = userName.charAt(0).toUpperCase();
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("username");
+
     navigate("/auth/login");
   };
 
@@ -98,7 +99,7 @@ const Navbar = () => {
           <div className="navbar-user">
             <div className="navbar-avatar">{avatarLetter}</div>
 
-            <span>{firstName}</span>
+            <span>{userName}</span>
           </div>
 
           <button

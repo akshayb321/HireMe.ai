@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import authRouter from "./routes/authRoutes.js";
+import atsRouter from "./routes/atsRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -17,3 +18,4 @@ app.listen(PORT, () => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/ats", atsRouter);

@@ -111,6 +111,59 @@
   font-weight: 500;
 }
 
+/* =========================
+   JOB ROLE
+========================= */
+
+.ats-role-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.ats-role-label {
+  display: none;
+}
+
+.ats-role-select,
+.ats-custom-role {
+  height: 40px;
+  min-width: 210px;
+  padding: 0 12px;
+  border: 1px solid #e2d9ef;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #4e485b;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ats-role-select:focus,
+.ats-custom-role:focus {
+  border-color: #683cb4;
+  box-shadow: 0 0 0 3px rgba(104, 60, 180, 0.08);
+}
+
+.ats-custom-role {
+  cursor: text;
+}
+
+.ats-custom-role::placeholder {
+  color: #aaa4b2;
+  font-weight: 500;
+}
+
+/* =========================
+   UPLOAD ACTIONS
+========================= */
+
 .ats-upload-actions {
   display: flex;
   align-items: center;
@@ -168,6 +221,99 @@
   font-size: 11px;
 }
 
+.ats-analyze-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.ats-analyze-btn:disabled:hover {
+  background: #683cb4;
+  border-color: #683cb4;
+  box-shadow: none;
+  transform: none;
+}
+
+/* =========================
+   ATS STATES
+========================= */
+
+.ats-ready-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  margin-top: 22px;
+  padding: 20px 24px;
+  border: 1px solid #eeeaf5;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(25, 22, 45, 0.03);
+}
+
+.ats-ready-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f4effb;
+  color: #683cb4;
+}
+
+.ats-ready-icon i {
+  font-size: 14px;
+}
+
+.ats-ready-card h3 {
+  margin: 0 0 4px;
+  color: #29243a;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.ats-ready-card p {
+  margin: 0;
+  color: #777181;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.ats-error {
+  margin-top: 14px;
+  padding: 11px 14px;
+  border: 1px solid #eadfe8;
+  border-radius: 9px;
+  background: #fffafb;
+  color: #9a5368;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.ats-analysis-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  color: #777181;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.ats-analysis-context i {
+  color: #683cb4;
+  font-size: 11px;
+}
+
+.ats-analysis-context strong {
+  color: #4e485b;
+  font-weight: 700;
+}
+
 /* =========================
    SCORE OVERVIEW
 ========================= */
@@ -195,24 +341,35 @@
 }
 
 .ats-score-circle {
+  --score: 0;
+
   width: 130px;
   height: 130px;
   flex-shrink: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 8px solid #eee7f8;
-  border-top-color: #683cb4;
-  border-right-color: #683cb4;
+
   border-radius: 50%;
-  transform: rotate(45deg);
+
+  background: conic-gradient(#683cb4 calc(var(--score) * 1%), #eee7f8 0);
+
+  transform: rotate(0deg);
 }
 
 .ats-score-circle-inner {
+  width: 114px;
+  height: 114px;
+
+  border-radius: 50%;
+  background: #ffffff;
+
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
-  transform: rotate(-45deg);
+
+  transform: none;
 }
 
 .ats-score-circle strong {
@@ -553,6 +710,17 @@
   .ats-overview {
     grid-template-columns: 1fr;
   }
+
+  .ats-role-wrapper {
+    width: 100%;
+    align-items: center;
+  }
+
+  .ats-role-select,
+  .ats-custom-role {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 800px) {
@@ -568,6 +736,22 @@
   .ats-upload-btn,
   .ats-analyze-btn {
     flex: 1;
+  }
+
+  .ats-role-wrapper {
+    width: 100%;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .ats-role-select,
+  .ats-custom-role {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .ats-role-wrapper .ats-upload-actions {
+    width: 100%;
   }
 
   .ats-keywords-grid {
@@ -593,7 +777,7 @@
   }
 
   .ats-main-score-card {
-    align-items: flex-start;
+    align-items: center;
     flex-direction: column;
     gap: 20px;
     padding: 22px;
@@ -602,6 +786,11 @@
   .ats-score-circle {
     width: 115px;
     height: 115px;
+  }
+
+  .ats-score-circle-inner {
+    width: 99px;
+    height: 99px;
   }
 
   .ats-score-circle strong {
@@ -638,8 +827,20 @@
     max-width: 220px;
   }
 
-  .ats-upload-actions {
+  .ats-role-wrapper {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ats-role-select,
+  .ats-custom-role {
+    width: 100%;
+    flex: none;
+  }
+
+  .ats-role-wrapper .ats-upload-actions {
+    flex-direction: column;
+    width: 100%;
   }
 
   .ats-upload-btn,
@@ -667,6 +868,11 @@
     align-items: flex-start;
     padding: 15px 17px;
   }
+
+  .ats-ready-card {
+    justify-content: flex-start;
+    padding: 17px;
+  }
 }
 
 @media (max-width: 360px) {
@@ -688,4 +894,22 @@
   .ats-score-info-card {
     padding: 18px;
   }
+}
+
+.ats-score-circle {
+  width: 105px;
+  height: 105px;
+}
+
+.ats-score-circle-inner {
+  width: 89px;
+  height: 89px;
+}
+
+.ats-score-circle strong {
+  font-size: 25px;
+}
+
+.ats-score-circle span {
+  font-size: 10px;
 }
