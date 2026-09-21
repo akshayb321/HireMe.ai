@@ -1208,6 +1208,77 @@
   box-shadow: none;
 }
 
+.conversation-content {
+  animation: conversationFadeIn 0.35s ease;
+}
+.transition-content {
+  text-align: center;
+  animation: transitionIn 0.45s ease;
+}
+.ai-transition {
+  margin-top: 18px;
+  font-size: 20px;
+  line-height: 1.6;
+  font-weight: 600;
+  color: #1f2937;
+}
+.answer-score {
+  margin: 14px 0;
+  font-weight: 700;
+  color: #7c3aed;
+}
+.transition-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 24px;
+}
+.transition-loader span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: transitionDot 1.2s infinite ease-in-out;
+}
+.transition-loader span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.transition-loader span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes conversationFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes transitionIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes transitionDot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
 /* =========================================================
    HEIGHT OPTIMIZATION
    ========================================================= */

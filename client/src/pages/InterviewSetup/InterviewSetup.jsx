@@ -1,4 +1,7 @@
 import { useRef, useState } from "react";
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import api from "../../config/api.js";
 import "./InterviewSetup.css";
 
 const roleOptions = [
@@ -39,6 +42,7 @@ const interviewTypes = [
 
 function InterviewSetup({ existingResume = null, onStartInterview }) {
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const [resume, setResume] = useState(existingResume);
   const [manualMode, setManualMode] = useState(false);
@@ -49,7 +53,6 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
   const [interviewType, setInterviewType] = useState("mixed");
   const [difficulty, setDifficulty] = useState("medium");
   const [questionCount, setQuestionCount] = useState(10);
-  const [language, setLanguage] = useState("English");
 
   const [manualDetails, setManualDetails] = useState({
     name: "",
@@ -59,6 +62,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
   });
 
   const [selectedFile, setSelectedFile] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   /* =========================================
      FILE UPLOAD
@@ -69,13 +73,15 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
 
     if (!file) return;
 
-    const allowedTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
+    if (file.type !== "application/pdf") {
+      setSelectedFile(null);
 
-    if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a PDF or DOCX file.");
+      toast.error("Please upload a PDF resume only.");
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
       return;
     }
 
@@ -95,6 +101,8 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
   ========================================= */
 
   const removeResume = () => {
+    if (loading) return;
+
     setResume(null);
     setSelectedFile(null);
 
@@ -108,6 +116,8 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
   ========================================= */
 
   const handleManualMode = () => {
+    if (loading) return;
+
     removeResume();
     setManualMode(true);
   };
@@ -125,40 +135,121 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
      START INTERVIEW
   ========================================= */
 
-  const handleStartInterview = () => {
+  const handleStartInterview = async () => {
+    if (loading) {
+      return;
+    }
+
     const finalRole = role === "Other" ? customRole.trim() : role;
 
     if (!finalRole) {
-      alert("Please select your target job role.");
+      toast.error("Please select your target job role.");
       return;
     }
 
     if (!resume && !manualMode) {
-      alert("Please upload a resume or enter your details manually.");
+      toast.error("Please upload a resume or enter your details manually.");
       return;
     }
 
     if (manualMode && !manualDetails.name.trim()) {
-      alert("Please enter your name.");
+      toast.error("Please enter your name.");
       return;
     }
 
-    const interviewConfig = {
-      resume,
-      selectedFile,
-      manualMode,
-      manualDetails,
-      role: finalRole,
-      interviewType,
-      difficulty,
-      questionCount,
-      language,
-    };
+    const useExistingResume =
+      !manualMode && !selectedFile && !!resume && !resume.isNew;
 
-    console.log("Interview Configuration:", interviewConfig);
+    try {
+      setLoading(true);
 
-    if (onStartInterview) {
-      onStartInterview(interviewConfig);
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        toast.error("Authentication required. Please login again.");
+        navigate("/login");
+        return;
+      }
+
+      const formData = new FormData();
+
+      formData.append("role", finalRole);
+      formData.append("interviewType", interviewType);
+      formData.append("difficulty", difficulty);
+      formData.append("questionCount", String(questionCount));
+      formData.append("manualMode", String(manualMode));
+      formData.append("useExistingResume", String(useExistingResume));
+
+      if (manualMode) {
+        formData.append(
+          "manualDetails",
+          JSON.stringify({
+            name: manualDetails.name.trim(),
+            experience: manualDetails.experience,
+            skills: manualDetails.skills.trim(),
+            about: manualDetails.about.trim(),
+          }),
+        );
+      }
+
+      if (selectedFile) {
+        formData.append("resume", selectedFile);
+      }
+
+      const response = await api.post("/interviews/start", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.data?.success || !response.data?.data) {
+        toast.error("Unable to start the interview.");
+        return;
+      }
+
+      const data = response.data.data;
+
+      /*
+        Keep parent callback support if the parent
+        is already using onStartInterview.
+      */
+      if (onStartInterview) {
+        onStartInterview({
+          interviewId: data.interviewId,
+          questionNumber: data.questionNumber,
+          totalQuestions: data.totalQuestions,
+          question: data.question,
+        });
+      }
+
+      toast.success("Interview started successfully.");
+
+      /*
+        Navigate only after the backend has successfully
+        created the interview and generated question 1.
+      */
+      navigate(`/interview/${data.interviewId}`, {
+        replace: true,
+        state: {
+          questionNumber: data.questionNumber,
+          totalQuestions: data.totalQuestions,
+          question: data.question,
+        },
+      });
+    } catch (error) {
+      console.error("========== START INTERVIEW ERROR ==========");
+      console.error("Message:", error.message);
+      console.error("Response:", error.response);
+      console.error("Response Data:", error.response?.data);
+      console.error("Status:", error.response?.status);
+      console.error("============================================");
+
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to start interview. Please try again.",
+      );
+    } finally {
+      setStartingInterview(false);
     }
   };
 
@@ -248,6 +339,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     className="remove-resume-btn"
                     onClick={removeResume}
                     aria-label="Remove resume"
+                    disabled={loading}
                   >
                     <i className="fa-solid fa-xmark" />
                   </button>
@@ -267,6 +359,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="secondary-action"
+                    disabled={loading}
                   >
                     <i className="fa-solid fa-arrow-up-from-bracket" />
                     Upload different resume
@@ -276,6 +369,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     type="button"
                     onClick={handleManualMode}
                     className="text-action"
+                    disabled={loading}
                   >
                     Enter manually
                     <i className="fa-solid fa-arrow-right" />
@@ -301,6 +395,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="small-upload-btn"
+                    disabled={loading}
                   >
                     <i className="fa-solid fa-file-arrow-up" />
                     Upload
@@ -320,6 +415,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                       value={manualDetails.name}
                       onChange={handleManualChange}
                       placeholder="Your full name"
+                      disabled={loading}
                     />
                   </div>
 
@@ -330,6 +426,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                       name="experience"
                       value={manualDetails.experience}
                       onChange={handleManualChange}
+                      disabled={loading}
                     >
                       <option>Fresher</option>
                       <option>0–1 years</option>
@@ -348,6 +445,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                       value={manualDetails.skills}
                       onChange={handleManualChange}
                       placeholder="React, JavaScript, Node.js..."
+                      disabled={loading}
                     />
                   </div>
 
@@ -360,6 +458,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                       onChange={handleManualChange}
                       placeholder="Briefly describe yourself..."
                       rows="4"
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -368,6 +467,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                   type="button"
                   className="back-resume-btn"
                   onClick={() => setManualMode(false)}
+                  disabled={loading}
                 >
                   <i className="fa-solid fa-arrow-left" />
                   Back to resume
@@ -385,12 +485,13 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
 
                 <h3>Upload your resume</h3>
 
-                <p>PDF or DOCX · Recommended</p>
+                <p>PDF · Recommended</p>
 
                 <button
                   type="button"
                   className="upload-btn"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
                 >
                   <i className="fa-solid fa-arrow-up-from-bracket" />
                   Choose resume
@@ -404,6 +505,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                   type="button"
                   className="manual-btn"
                   onClick={handleManualMode}
+                  disabled={loading}
                 >
                   Enter details manually
                   <i className="fa-solid fa-arrow-right" />
@@ -414,7 +516,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,application/pdf"
               onChange={handleFileChange}
               hidden
             />
@@ -457,6 +559,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                 <select
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
+                  disabled={loading}
                 >
                   <option value="">Select your role</option>
 
@@ -483,6 +586,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                   value={customRole}
                   onChange={(event) => setCustomRole(event.target.value)}
                   placeholder="e.g. Content Writer"
+                  disabled={loading}
                 />
               </div>
             )}
@@ -507,6 +611,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                       interviewType === item.value ? "selected" : ""
                     }`}
                     onClick={() => setInterviewType(item.value)}
+                    disabled={loading}
                   >
                     <div className="type-card-icon">
                       <i className={item.icon} />
@@ -544,6 +649,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     key={item}
                     className={difficulty === item ? "active" : ""}
                     onClick={() => setDifficulty(item)}
+                    disabled={loading}
                   >
                     {item.charAt(0).toUpperCase() + item.slice(1)}
                   </button>
@@ -569,6 +675,7 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     key={number}
                     className={questionCount === number ? "active" : ""}
                     onClick={() => setQuestionCount(number)}
+                    disabled={loading}
                   >
                     <strong>{number}</strong>
 
@@ -583,37 +690,6 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
                     {number === 10 && <small>Recommended</small>}
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* =================================
-                LANGUAGE
-            ================================== */}
-
-            <div className="language-row">
-              <div className="language-info">
-                <div className="language-icon">
-                  <i className="fa-solid fa-language" />
-                </div>
-
-                <div>
-                  <strong>Interview language</strong>
-
-                  <span>Language used by your AI interviewer</span>
-                </div>
-              </div>
-
-              <div className="language-select">
-                <select
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
-                >
-                  <option>English</option>
-                  <option>Hindi</option>
-                  <option>Hinglish</option>
-                </select>
-
-                <i className="fa-solid fa-chevron-down" />
               </div>
             </div>
           </section>
@@ -640,10 +716,17 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
             type="button"
             className="start-interview-btn"
             onClick={handleStartInterview}
+            disabled={loading}
           >
-            <span>Start Interview</span>
+            <span>{loading ? "Starting Interview..." : "Start Interview"}</span>
 
-            <i className="fa-solid fa-arrow-right" />
+            <i
+              className={
+                loading
+                  ? "fa-solid fa-spinner fa-spin"
+                  : "fa-solid fa-arrow-right"
+              }
+            />
           </button>
         </div>
       </div>

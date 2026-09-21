@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 // Layout
 import MainLayout from "./layouts/MainLayout/MainLayout";
@@ -18,41 +19,50 @@ import InterviewSetup from "./pages/InterviewSetup/InterviewSetup";
 
 const App = () => {
   return (
-    <Routes>
-      {/* =========================
-          AUTH ROUTES
-      ========================= */}
+    <>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 2000,
+        }}
+      />
 
-      <Route path="/auth/login" element={<Login />} />
+      <Routes>
+        {/* =========================
+            AUTH ROUTES
+        ========================= */}
 
-      <Route path="/auth/signup" element={<Signup />} />
+        <Route path="/auth/login" element={<Login />} />
 
-      <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+        <Route path="/auth/signup" element={<Signup />} />
 
-      {/* =========================
-          MAIN APPLICATION ROUTES
-      ========================= */}
+        <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
-      <Route element={<MainLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
+        {/* =========================
+            MAIN APPLICATION ROUTES
+        ========================= */}
 
-        <Route path="/interviews" element={<PastInterviews />} />
+        <Route element={<MainLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
 
-        <Route path="/interviews/:id" element={<InterviewReport />} />
+          <Route path="/interviews" element={<PastInterviews />} />
 
-        <Route path="/ats-score" element={<ATSScore />} />
+          <Route path="/interviews/:id" element={<InterviewReport />} />
 
-        <Route path="/interview-setup" element={<InterviewSetup />} />
+          <Route path="/ats-score" element={<ATSScore />} />
 
-        <Route path="/interview/:id" element={<LiveInterview />} />
-      </Route>
+          <Route path="/interview-setup" element={<InterviewSetup />} />
 
-      {/* =========================
-          DEFAULT ROUTE
-      ========================= */}
+          <Route path="/interview/:id" element={<LiveInterview />} />
+        </Route>
 
-      <Route path="/" element={<Navigate to="/auth/login" replace />} />
-    </Routes>
+        {/* =========================
+            DEFAULT ROUTE
+        ========================= */}
+
+        <Route path="/" element={<Navigate to="/auth/login" replace />} />
+      </Routes>
+    </>
   );
 };
 

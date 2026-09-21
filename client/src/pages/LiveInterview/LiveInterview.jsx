@@ -1,41 +1,52 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import api from "../../config/api.js";
 import "./LiveInterview.css";
 
 const LiveInterview = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
 
-  const totalQuestions = 10;
+  const initialInterviewData = location.state || {};
 
-  const questions = [
-    "Tell me about yourself and your experience with frontend development.",
-    "What are the main differences between JavaScript and TypeScript?",
-    "Can you explain your experience with React and how you use it in your projects?",
-    "How do you optimize the performance of a React application?",
-    "What is the difference between REST and GraphQL?",
-    "How do you handle authentication in a MERN application?",
-    "How would you design a scalable frontend application?",
-    "Tell me about a challenging project you have worked on.",
-    "How do you debug a difficult frontend issue?",
-    "Why should we hire you for this role?",
-  ];
+  /* =========================================
+     INTERVIEW STATE
+  ========================================= */
 
-  const [currentQuestion, setCurrentQuestion] = useState(3);
+  const [totalQuestions, setTotalQuestions] = useState(
+    initialInterviewData.totalQuestions || 10,
+  );
+
+  const [currentQuestion, setCurrentQuestion] = useState(
+    initialInterviewData.questionNumber || 1,
+  );
+
+  const [currentQuestionText, setCurrentQuestionText] = useState(
+    initialInterviewData.question || "",
+  );
 
   /*
-    conversationPhase:
-    question -> AI is showing current question
-    feedback -> AI is showing feedback after user's answer
+    question
+      -> Current question
+
+    feedback
+      -> AI feedback after answer
+
+    transition
+      -> AI transition before next question
   */
   const [conversationPhase, setConversationPhase] = useState("question");
 
   const [aiState, setAiState] = useState("speaking");
+
   const [isRecording, setIsRecording] = useState(false);
 
   const [answerMode, setAnswerMode] = useState("voice");
 
   const [transcript, setTranscript] = useState("");
+
   const [typedAnswer, setTypedAnswer] = useState("");
 
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
@@ -44,17 +55,142 @@ const LiveInterview = () => {
 
   const [aiFeedback, setAiFeedback] = useState("");
 
+  const [aiTransition, setAiTransition] = useState("");
+
+  const [answerScore, setAnswerScore] = useState(null);
+
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
+
+  const [loadingInterview, setLoadingInterview] = useState(
+    !initialInterviewData.question,
+  );
+
+  /* =========================================
+     REFS
+  ========================================= */
+
   const recognitionRef = useRef(null);
+
   const timerRef = useRef(null);
 
   const finalTranscriptRef = useRef("");
 
-  /*
-    Keep the same male voice throughout the interview.
-  */
   const selectedVoiceRef = useRef(null);
 
-  const currentQuestionText = questions[currentQuestion - 1];
+  const sequenceTimeoutsRef = useRef([]);
+
+  /* =========================================
+     UTILITY
+  ========================================= */
+
+  const addSequenceTimeout = (callback, delay) => {
+    const timeout = setTimeout(callback, delay);
+
+    sequenceTimeoutsRef.current.push(timeout);
+
+    return timeout;
+  };
+
+  const clearSequenceTimeouts = () => {
+    sequenceTimeoutsRef.current.forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+
+    sequenceTimeoutsRef.current = [];
+  };
+
+  /* =========================================
+     LOAD INTERVIEW
+  ========================================= */
+
+  useEffect(() => {
+    const loadInterview = async () => {
+      if (!id) {
+        toast.error("Interview session not found.");
+        navigate("/interviews");
+        return;
+      }
+
+      /*
+        If interview data was passed through navigation state,
+        we already have the first question.
+      */
+
+      if (initialInterviewData.question) {
+        setLoadingInterview(false);
+        return;
+      }
+
+      try {
+        setLoadingInterview(true);
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          toast.error("Authentication required. Please login again.");
+          navigate("/login");
+          return;
+        }
+
+        const response = await api.get(`/interviews/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.data.success || !response.data.data) {
+          toast.error("Interview data could not be loaded.");
+          navigate("/interviews");
+          return;
+        }
+
+        const interview = response.data.data;
+
+        setTotalQuestions(interview.questionCount || 10);
+
+        if (interview.questions?.length) {
+          const lastQuestion =
+            interview.questions[interview.questions.length - 1];
+
+          setCurrentQuestion(interview.questions.length);
+
+          setCurrentQuestionText(lastQuestion.question || "");
+
+          /*
+            If the latest question already has an answer,
+            show its feedback.
+          */
+
+          if (lastQuestion.answer) {
+            setAnswerSubmitted(true);
+
+            setAiFeedback(lastQuestion.feedback || "");
+
+            setAiTransition(lastQuestion.transition || "");
+
+            setAnswerScore(lastQuestion.score ?? null);
+
+            setConversationPhase("feedback");
+
+            setAiState("ready");
+          }
+        }
+      } catch (error) {
+        console.error("Load interview error:", error);
+
+        toast.error(
+          error.response?.data?.message ||
+            "Failed to load the interview session.",
+        );
+
+        navigate("/interviews");
+      } finally {
+        setLoadingInterview(false);
+      }
+    };
+
+    loadInterview();
+  }, [id, navigate]);
 
   /* =========================================
      VOICE SELECTION
@@ -74,13 +210,6 @@ const LiveInterview = () => {
     if (selectedVoiceRef.current) {
       return selectedVoiceRef.current;
     }
-
-    /*
-      Prefer male English voices.
-
-      Browser voice availability is different on Chrome,
-      Edge, Windows, macOS etc., so we keep fallbacks.
-    */
 
     const maleVoicePatterns =
       /Google US English|Google UK English Male|Microsoft David|Microsoft Mark|Microsoft Guy|Daniel|Alex|Fred|Tom|Male/i;
@@ -108,10 +237,18 @@ const LiveInterview = () => {
   };
 
   /* =========================================
-     GENERIC TEXT TO SPEECH
+     TEXT TO SPEECH
   ========================================= */
 
   const speakText = (text, onEnd) => {
+    if (!text) {
+      if (onEnd) {
+        onEnd();
+      }
+
+      return;
+    }
+
     if (!("speechSynthesis" in window)) {
       setAiState("unavailable");
 
@@ -149,7 +286,9 @@ const LiveInterview = () => {
       }
     };
 
-    utterance.onerror = () => {
+    utterance.onerror = (event) => {
+      console.error("Speech synthesis error:", event);
+
       setAiState("error");
 
       if (onEnd) {
@@ -161,7 +300,7 @@ const LiveInterview = () => {
   };
 
   /* =========================================
-     QUESTION SPEECH
+     SPEAK CURRENT QUESTION
   ========================================= */
 
   const speakQuestion = () => {
@@ -169,15 +308,17 @@ const LiveInterview = () => {
       return;
     }
 
+    if (!currentQuestionText) {
+      return;
+    }
+
     speakText(currentQuestionText);
   };
 
-  /*
-    Load browser voices early.
+  /* =========================================
+     LOAD BROWSER VOICES
+  ========================================= */
 
-    This helps Chrome/Edge populate voices before
-    the first question is spoken.
-  */
   useEffect(() => {
     if (!("speechSynthesis" in window)) {
       return;
@@ -196,24 +337,22 @@ const LiveInterview = () => {
     };
   }, []);
 
-  /*
-    Speak current question automatically.
+  /* =========================================
+     AUTO SPEAK QUESTION
+  ========================================= */
 
-    IMPORTANT:
-    We only do this when the conversation phase is "question".
-
-    After AI feedback + next question speech finishes,
-    we directly move to the next question without
-    triggering this effect again.
-  */
   useEffect(() => {
-    if (conversationPhase !== "question") {
+    if (
+      conversationPhase !== "question" ||
+      loadingInterview ||
+      !currentQuestionText
+    ) {
       return;
     }
 
     const timer = setTimeout(() => {
       speakQuestion();
-    }, 300);
+    }, 350);
 
     return () => {
       clearTimeout(timer);
@@ -222,7 +361,12 @@ const LiveInterview = () => {
         window.speechSynthesis.cancel();
       }
     };
-  }, [currentQuestion, conversationPhase]);
+  }, [
+    currentQuestion,
+    conversationPhase,
+    loadingInterview,
+    currentQuestionText,
+  ]);
 
   /* =========================================
      SPEECH RECOGNITION
@@ -233,28 +377,44 @@ const LiveInterview = () => {
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
+      toast.error(
+        "Speech recognition is not supported in this browser. Please use text mode.",
+      );
+
       setAnswerMode("text");
+
       return;
     }
 
     /*
-      Reset previous transcript properly.
-
-      This fixes the old issue where interim speech
-      was repeatedly appended and created duplicated text.
+      Stop any previous recognition instance.
     */
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // Ignore cleanup error.
+      }
+    }
+
     finalTranscriptRef.current = "";
+
     setTranscript("");
+
     setRecordingSeconds(0);
 
     const recognition = new SpeechRecognition();
 
     recognition.continuous = true;
+
     recognition.interimResults = true;
+
     recognition.lang = "en-US";
 
     recognition.onstart = () => {
       setIsRecording(true);
+
       setAiState("listening");
     };
 
@@ -276,15 +436,26 @@ const LiveInterview = () => {
       setTranscript(`${finalText} ${interimText}`.trim());
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+
       setIsRecording(false);
+
       setAiState("ready");
+
+      if (event.error === "not-allowed") {
+        toast.error("Microphone permission is required for voice answers.");
+      }
     };
 
     recognition.onend = () => {
       setIsRecording(false);
 
-      setTranscript(finalTranscriptRef.current.trim());
+      const finalText = finalTranscriptRef.current.trim();
+
+      if (finalText) {
+        setTranscript(finalText);
+      }
 
       setAiState("ready");
     };
@@ -293,21 +464,33 @@ const LiveInterview = () => {
 
     try {
       recognition.start();
-    } catch {
+    } catch (error) {
+      console.error("Speech recognition start error:", error);
+
       setIsRecording(false);
+
       setAiState("ready");
     }
   };
 
   const stopRecording = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // Ignore cleanup error.
+      }
     }
 
     setIsRecording(false);
+
     setAiState("ready");
 
-    setTranscript(finalTranscriptRef.current.trim());
+    const finalText = finalTranscriptRef.current.trim();
+
+    if (finalText) {
+      setTranscript(finalText);
+    }
   };
 
   /* =========================================
@@ -323,7 +506,9 @@ const LiveInterview = () => {
       clearInterval(timerRef.current);
     }
 
-    return () => clearInterval(timerRef.current);
+    return () => {
+      clearInterval(timerRef.current);
+    };
   }, [isRecording]);
 
   const formatTime = (seconds) => {
@@ -337,204 +522,307 @@ const LiveInterview = () => {
   };
 
   /* =========================================
-     SIMPLE FRONTEND FEEDBACK ENGINE
-     =========================================
+     ANSWER VALIDATION
+  ========================================= */
 
-     This is temporary prototype logic.
+  const hasAnswer =
+    answerMode === "voice"
+      ? transcript.trim().length > 0 ||
+        finalTranscriptRef.current.trim().length > 0
+      : typedAnswer.trim().length > 0;
 
-     Later Gemini/backend will replace this with
-     real AI analysis of:
-     - correctness
-     - missing concepts
-     - communication
-     - technical depth
-     - answer quality
-  */
+  /* =========================================
+     RESET ANSWER STATE
+  ========================================= */
 
-  const generateFeedback = (answer, questionNumber) => {
-    const cleanedAnswer = answer.trim();
+  const resetAnswerState = () => {
+    setTranscript("");
 
-    if (!cleanedAnswer) {
-      return {
-        feedback:
-          "I couldn't hear a complete answer from you. Let's continue with the next question.",
-        transition: "Alright, let's move on to the next question.",
-      };
-    }
+    setTypedAnswer("");
 
-    const wordCount = cleanedAnswer.split(/\s+/).filter(Boolean).length;
+    setAiFeedback("");
 
-    /*
-      Question-specific keywords for prototype feedback.
-    */
+    setAiTransition("");
 
-    const keywordMap = {
-      1: ["frontend", "react", "javascript", "html", "css", "project"],
+    setAnswerScore(null);
 
-      2: ["javascript", "typescript", "type", "static", "dynamic", "interface"],
+    setAnswerSubmitted(false);
 
-      3: ["react", "component", "hooks", "state", "props"],
+    setRecordingSeconds(0);
 
-      4: ["performance", "lazy", "memo", "optimization", "render", "cache"],
+    finalTranscriptRef.current = "";
+  };
 
-      5: ["rest", "graphql", "api", "query", "endpoint"],
+  /* =========================================
+     COMPLETE NEXT QUESTION TRANSITION
+  ========================================= */
 
-      6: ["authentication", "jwt", "token", "login", "middleware", "password"],
+  const moveToNextQuestion = (nextQuestion, nextQuestionNumber) => {
+    setCurrentQuestion(nextQuestionNumber);
 
-      7: [
-        "scalable",
-        "component",
-        "architecture",
-        "state",
-        "performance",
-        "api",
-      ],
+    setCurrentQuestionText(nextQuestion);
 
-      8: ["project", "challenge", "problem", "solution", "debug"],
+    resetAnswerState();
 
-      9: ["debug", "console", "network", "error", "devtools", "log"],
+    setConversationPhase("question");
 
-      10: ["skills", "experience", "react", "javascript", "project", "value"],
-    };
+    setAiState("speaking");
 
-    const keywords = keywordMap[questionNumber] || [];
-
-    const lowerAnswer = cleanedAnswer.toLowerCase();
-
-    const matchedKeywords = keywords.filter((keyword) =>
-      lowerAnswer.includes(keyword),
-    );
-
-    /*
-      Basic prototype classification.
-    */
-
-    if (wordCount >= 45 && matchedKeywords.length >= 2) {
-      return {
-        feedback:
-          "Good explanation. Your answer covers the main idea and you supported it with relevant technical points. Keep this level of detail, but try to make your explanation slightly more structured.",
-        transition: "Good, let's take the next one.",
-      };
-    }
-
-    if (wordCount >= 20 && matchedKeywords.length >= 1) {
-      return {
-        feedback:
-          "You're on the right track. Your answer covers part of the concept, but there are a few important points that could be explained more clearly. Try to give a more structured explanation and include a practical example when possible.",
-        transition: "With that clarified, let's continue.",
-      };
-    }
-
-    if (wordCount < 10) {
-      return {
-        feedback:
-          "That's a very brief answer. You have mentioned the basic idea, but I would like to hear a little more explanation and an example so I can understand your technical knowledge better.",
-        transition: "Alright, let's move on to the next question.",
-      };
-    }
-
-    return {
-      feedback:
-        "That's a good start, but your answer is missing some important technical details. Try to explain the concept more clearly and connect it with how you would use it in a real project.",
-      transition: "Good, let's take the next one.",
-    };
+    setSubmittingAnswer(false);
   };
 
   /* =========================================
      SUBMIT ANSWER
   ========================================= */
 
-  const hasAnswer =
-    answerMode === "voice"
-      ? transcript.trim().length > 0
-      : typedAnswer.trim().length > 0;
-
-  const handleSubmitAnswer = () => {
-    if (!hasAnswer || answerSubmitted) {
+  const handleSubmitAnswer = async () => {
+    if (!hasAnswer || answerSubmitted || submittingAnswer) {
       return;
     }
+
+    if (!id) {
+      toast.error("Interview session not found.");
+      return;
+    }
+
+    /*
+      Stop recording before submitting.
+    */
 
     if (isRecording) {
       stopRecording();
     }
 
+    /*
+      Stop any currently playing question speech.
+    */
+
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
 
+    /*
+      For voice mode, prefer the final transcript ref.
+      This prevents losing the latest speech result.
+    */
+
     const answer =
-      answerMode === "voice" ? transcript.trim() : typedAnswer.trim();
+      answerMode === "voice"
+        ? (finalTranscriptRef.current.trim() || transcript.trim()).trim()
+        : typedAnswer.trim();
 
-    const result = generateFeedback(answer, currentQuestion);
+    if (!answer) {
+      toast.error("Please provide an answer before submitting.");
+      return;
+    }
 
-    setAiFeedback(result.feedback);
-    setAnswerSubmitted(true);
+    try {
+      setSubmittingAnswer(true);
 
-    /*
-    First show ONLY AI feedback.
-  */
-    setConversationPhase("feedback");
-    setAiState("analyzing");
+      setAiState("analyzing");
 
-    /*
-    Speak ONLY the feedback + transition.
+      const token = localStorage.getItem("token");
 
-    IMPORTANT:
-    We do NOT speak the next question here.
-    This allows us to change the UI to the next
-    question BEFORE its voice starts.
-  */
-    setTimeout(() => {
-      const feedbackSpeech = `${result.feedback} ${result.transition}`;
+      if (!token) {
+        toast.error("Authentication required. Please login again.");
 
-      speakText(feedbackSpeech, () => {
-        /*
-        FINAL QUESTION
+        setSubmittingAnswer(false);
+
+        navigate("/login");
+
+        return;
+      }
+
+      const response = await api.post(
+        `/interviews/${id}/answer`,
+        {
+          answer,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.data.success || !response.data.data) {
+        toast.error("Invalid response from interview server.");
+
+        setSubmittingAnswer(false);
+
+        setAiState("ready");
+
+        return;
+      }
+
+      const data = response.data.data;
+
+      /*
+        Store evaluation data.
       */
-        if (currentQuestion === totalQuestions) {
-          setAiState("ready");
 
-          setTimeout(() => {
-            navigate(`/interviews/${id || "new"}`);
-          }, 500);
+      setAnswerSubmitted(true);
 
-          return;
-        }
+      setAnswerScore(data.score ?? null);
 
-        /*
-        IMPORTANT FLOW:
+      setAiFeedback(data.feedback || "");
 
-        1. Change question number
-        2. Change container from feedback -> question
-        3. Clear previous answer
-        4. React renders the NEW question first
-        5. Then the useEffect below speaks that question
-      */
+      setAiTransition(data.transition || "");
 
-        setCurrentQuestion((previous) => previous + 1);
+      /* =========================================
+         FINAL QUESTION
+      ========================================= */
 
-        setTranscript("");
-        setTypedAnswer("");
-        setAiFeedback("");
-        setAnswerSubmitted(false);
-        setRecordingSeconds(0);
+      if (data.isCompleted) {
+        const feedbackSpeech = data.feedback || "Thank you for your answer.";
 
-        finalTranscriptRef.current = "";
+        const transitionSpeech =
+          data.transition ||
+          "That completes your interview. Let's review your results.";
 
         /*
-        This changes the LEFT AI CARD immediately
-        from feedback -> next question.
-      */
-        setConversationPhase("question");
+          IMPORTANT:
+          First render FEEDBACK UI.
+        */
 
-        /*
-        Question speech will be handled automatically
-        by the existing [currentQuestion, conversationPhase]
-        useEffect.
-      */
+        setConversationPhase("feedback");
+
         setAiState("speaking");
-      });
-    }, 600);
+
+        /*
+          Small delay ensures React renders
+          feedback before speech starts.
+        */
+
+        addSequenceTimeout(() => {
+          speakText(feedbackSpeech, () => {
+            /*
+              Feedback finished.
+              Wait before transition.
+            */
+
+            addSequenceTimeout(() => {
+              setConversationPhase("transition");
+
+              setAiState("speaking");
+
+              setAiTransition(transitionSpeech);
+
+              /*
+                Give React time to render transition UI.
+              */
+
+              addSequenceTimeout(() => {
+                speakText(transitionSpeech, () => {
+                  /*
+                    Interview completed.
+                    Open report after a short pause.
+                  */
+
+                  addSequenceTimeout(() => {
+                    setSubmittingAnswer(false);
+
+                    navigate(`/interviews/${id}`);
+                  }, 700);
+                });
+              }, 200);
+            }, 1000);
+          });
+        }, 200);
+
+        toast.success("Interview completed successfully.");
+
+        return;
+      }
+
+      /* =========================================
+         NORMAL QUESTION
+      ========================================= */
+
+      const nextQuestion = data.nextQuestion;
+
+      if (!nextQuestion) {
+        toast.error("Next question was not received.");
+
+        setSubmittingAnswer(false);
+
+        setAiState("ready");
+
+        return;
+      }
+
+      const nextQuestionNumber = data.questionNumber || currentQuestion + 1;
+
+      const feedbackSpeech = data.feedback || "Thank you for your answer.";
+
+      const transitionSpeech =
+        data.transition || "Let's move on to the next question.";
+
+      /*
+        =========================================
+        STEP 1
+        SHOW FEEDBACK UI
+        =========================================
+      */
+
+      setConversationPhase("feedback");
+
+      setAiState("speaking");
+
+      /*
+        IMPORTANT:
+        Feedback UI is rendered BEFORE speech.
+      */
+
+      addSequenceTimeout(() => {
+        speakText(feedbackSpeech, () => {
+          /*
+            =========================================
+            STEP 2
+            SHOW TRANSITION UI
+            =========================================
+          */
+
+          addSequenceTimeout(() => {
+            setConversationPhase("transition");
+
+            setAiState("speaking");
+
+            setAiTransition(transitionSpeech);
+
+            /*
+              Give React time to render transition UI.
+            */
+
+            addSequenceTimeout(() => {
+              speakText(transitionSpeech, () => {
+                /*
+                  =========================================
+                  STEP 3
+                  SHOW NEXT QUESTION
+                  =========================================
+                */
+
+                addSequenceTimeout(() => {
+                  moveToNextQuestion(nextQuestion, nextQuestionNumber);
+                }, 500);
+              });
+            }, 200);
+          }, 1000);
+        });
+      }, 200);
+    } catch (error) {
+      console.error("Submit answer error:", error);
+
+      setSubmittingAnswer(false);
+
+      setAiState("ready");
+
+      toast.error(
+        error.response?.data?.message ||
+          "Something went wrong while evaluating your answer.",
+      );
+    }
   };
 
   /* =========================================
@@ -542,6 +830,12 @@ const LiveInterview = () => {
   ========================================= */
 
   const handleEndInterview = () => {
+    if (submittingAnswer) {
+      return;
+    }
+
+    clearSequenceTimeouts();
+
     if (isRecording) {
       stopRecording();
     }
@@ -550,7 +844,7 @@ const LiveInterview = () => {
       try {
         recognitionRef.current.abort();
       } catch {
-        // Ignore recognition cleanup errors.
+        // Ignore cleanup errors.
       }
     }
 
@@ -569,6 +863,8 @@ const LiveInterview = () => {
     return () => {
       clearInterval(timerRef.current);
 
+      clearSequenceTimeouts();
+
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -583,7 +879,12 @@ const LiveInterview = () => {
     };
   }, []);
 
-  const progress = (currentQuestion / totalQuestions) * 100;
+  /* =========================================
+     PROGRESS
+  ========================================= */
+
+  const progress =
+    totalQuestions > 0 ? (currentQuestion / totalQuestions) * 100 : 0;
 
   /* =========================================
      AI STATUS
@@ -591,9 +892,15 @@ const LiveInterview = () => {
 
   const getAiStatus = () => {
     if (aiState === "speaking") {
-      return conversationPhase === "feedback"
-        ? "Speaking feedback"
-        : "Speaking";
+      if (conversationPhase === "feedback") {
+        return "Speaking feedback";
+      }
+
+      if (conversationPhase === "transition") {
+        return "Moving to next question";
+      }
+
+      return "Speaking";
     }
 
     if (aiState === "listening") {
@@ -615,6 +922,40 @@ const LiveInterview = () => {
     return "Ready for your answer";
   };
 
+  /* =========================================
+     LOADING STATE
+  ========================================= */
+
+  if (loadingInterview) {
+    return (
+      <div className="live-interview">
+        <div className="live-interview-shell">
+          <div
+            style={{
+              minHeight: "70vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <i
+              className="fa-solid fa-spinner fa-spin"
+              style={{ fontSize: "28px" }}
+            />
+
+            <p>Loading your interview...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================
+     MAIN UI
+  ========================================= */
+
   return (
     <div className="live-interview">
       <div className="live-interview-shell">
@@ -626,7 +967,7 @@ const LiveInterview = () => {
           <div>
             <span className="live-label">LIVE INTERVIEW</span>
 
-            <h1>Frontend Developer Interview</h1>
+            <h1>AI Interview</h1>
           </div>
 
           <div className="live-progress-box">
@@ -654,9 +995,9 @@ const LiveInterview = () => {
         ========================================= */}
 
         <main className="live-main">
-          {/* =====================================
+          {/* =========================================
               AI INTERVIEWER
-          ====================================== */}
+          ========================================= */}
 
           <section className="ai-interviewer">
             <div className="ai-top">
@@ -684,28 +1025,56 @@ const LiveInterview = () => {
               <span className="ai-pill">AI</span>
             </div>
 
-            {/* =====================================
-                ACTIVE AI CONVERSATION
-            ====================================== */}
+            {/* =========================================
+                AI CONVERSATION
+            ========================================= */}
 
             <div className="ai-content">
-              {conversationPhase === "question" ? (
-                <>
+              {/* QUESTION */}
+
+              {conversationPhase === "question" && (
+                <div className="conversation-content">
                   <span className="question-label">
                     QUESTION {currentQuestion}
                   </span>
 
                   <h2>{currentQuestionText}</h2>
-                </>
-              ) : (
-                <>
+                </div>
+              )}
+
+              {/* FEEDBACK */}
+
+              {conversationPhase === "feedback" && (
+                <div className="conversation-content">
                   <span className="question-label feedback-label">
                     AI FEEDBACK
                   </span>
 
+                  {answerScore !== null && (
+                    <div className="answer-score">Score: {answerScore}/100</div>
+                  )}
+
                   <div className="ai-feedback">{aiFeedback}</div>
-                </>
+                </div>
               )}
+
+              {/* TRANSITION */}
+
+              {conversationPhase === "transition" && (
+                <div className="conversation-content transition-content">
+                  <span className="question-label">NEXT</span>
+
+                  <div className="ai-transition">{aiTransition}</div>
+
+                  <div className="transition-loader">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+              )}
+
+              {/* AI SPEAKING INDICATOR */}
 
               <div className="ai-speaking">
                 <div
@@ -723,14 +1092,15 @@ const LiveInterview = () => {
                   <span />
                   <span />
                   <span />
-                  <span />
                 </div>
 
                 <span>
                   {aiState === "speaking"
                     ? conversationPhase === "feedback"
                       ? "AI is responding..."
-                      : "AI is speaking..."
+                      : conversationPhase === "transition"
+                        ? "Moving forward..."
+                        : "AI is speaking..."
                     : aiState === "analyzing"
                       ? "Analyzing your response..."
                       : aiState === "listening"
@@ -739,17 +1109,22 @@ const LiveInterview = () => {
                 </span>
               </div>
 
+              {/* REPLAY QUESTION */}
+
               {conversationPhase === "question" && (
                 <button
                   type="button"
                   className="replay-btn"
                   onClick={speakQuestion}
+                  disabled={submittingAnswer}
                 >
                   <i className="fa-solid fa-volume-high" />
                   Replay Question
                 </button>
               )}
             </div>
+
+            {/* AI FOOTER */}
 
             <div className="ai-bottom">
               <span>
@@ -761,10 +1136,9 @@ const LiveInterview = () => {
             </div>
           </section>
 
-          {/* =====================================
+          {/* =========================================
               ANSWER PANEL
-              RIGHT SIDE 
-          ====================================== */}
+          ========================================= */}
 
           <section className="answer-panel">
             <div className="answer-header">
@@ -774,9 +1148,11 @@ const LiveInterview = () => {
                 <h2>
                   {isRecording
                     ? "Listening..."
-                    : answerSubmitted
-                      ? "Answer submitted"
-                      : "Ready when you are"}
+                    : submittingAnswer
+                      ? "Analyzing..."
+                      : answerSubmitted
+                        ? "Answer submitted"
+                        : "Ready when you are"}
                 </h2>
               </div>
 
@@ -789,15 +1165,19 @@ const LiveInterview = () => {
               )}
             </div>
 
-            {!answerSubmitted && (
+            {/* ANSWER TABS */}
+
+            {!answerSubmitted && conversationPhase === "question" && (
               <div className="answer-tabs">
                 <button
                   type="button"
                   className={answerMode === "voice" ? "active" : ""}
                   onClick={() => {
                     setAnswerMode("voice");
+
                     setAiState("ready");
                   }}
+                  disabled={submittingAnswer}
                 >
                   <i className="fa-solid fa-microphone" />
                   Speak
@@ -812,8 +1192,10 @@ const LiveInterview = () => {
                     }
 
                     setAnswerMode("text");
+
                     setAiState("ready");
                   }}
+                  disabled={submittingAnswer}
                 >
                   <i className="fa-solid fa-keyboard" />
                   Type
@@ -821,18 +1203,22 @@ const LiveInterview = () => {
               </div>
             )}
 
-            {/* =====================================
-                VOICE
-            ====================================== */}
+            {/* =========================================
+                VOICE ANSWER
+            ========================================= */}
 
-            {answerMode === "voice" && (
+            {answerMode === "voice" && !answerSubmitted && (
               <div className="voice-answer">
                 <div className={`microphone ${isRecording ? "recording" : ""}`}>
                   <div className="mic-ring" />
 
                   <button
                     type="button"
-                    disabled={answerSubmitted}
+                    disabled={
+                      answerSubmitted ||
+                      submittingAnswer ||
+                      conversationPhase !== "question"
+                    }
                     onClick={() => {
                       if (isRecording) {
                         stopRecording();
@@ -870,17 +1256,21 @@ const LiveInterview = () => {
               </div>
             )}
 
-            {/* =====================================
-                TYPE
-            ====================================== */}
+            {/* =========================================
+                TEXT ANSWER
+            ========================================= */}
 
-            {answerMode === "text" && (
+            {answerMode === "text" && !answerSubmitted && (
               <div className="text-answer">
                 <textarea
                   value={typedAnswer}
                   onChange={(event) => setTypedAnswer(event.target.value)}
                   placeholder="Type your answer here..."
-                  disabled={answerSubmitted}
+                  disabled={
+                    answerSubmitted ||
+                    submittingAnswer ||
+                    conversationPhase !== "question"
+                  }
                 />
 
                 <div className="text-meta">
@@ -891,19 +1281,34 @@ const LiveInterview = () => {
               </div>
             )}
 
-            {!answerSubmitted && (
+            {/* =========================================
+                SUBMIT BUTTON
+            ========================================= */}
+
+            {!answerSubmitted && conversationPhase === "question" && (
               <button
                 type="button"
                 className="submit-btn"
-                disabled={!hasAnswer}
+                disabled={!hasAnswer || submittingAnswer}
                 onClick={handleSubmitAnswer}
               >
-                Submit Answer
-                <i className="fa-solid fa-arrow-right" />
+                {submittingAnswer ? "Analyzing..." : "Submit Answer"}
+
+                <i
+                  className={
+                    submittingAnswer
+                      ? "fa-solid fa-spinner fa-spin"
+                      : "fa-solid fa-arrow-right"
+                  }
+                />
               </button>
             )}
 
-            {answerSubmitted && (
+            {/* =========================================
+                SUBMITTED STATE
+            ========================================= */}
+
+            {answerSubmitted && conversationPhase !== "question" && (
               <div className="submitted">
                 <div>
                   <i className="fa-solid fa-check" />
@@ -912,7 +1317,11 @@ const LiveInterview = () => {
                 <span>
                   <strong>Answer submitted</strong>
 
-                  <small>Your response has been captured.</small>
+                  <small>
+                    {answerScore !== null
+                      ? `AI score: ${answerScore}/100`
+                      : "Your response has been captured."}
+                  </small>
                 </span>
               </div>
             )}
@@ -934,27 +1343,10 @@ const LiveInterview = () => {
               type="button"
               className="end-btn"
               onClick={handleEndInterview}
+              disabled={submittingAnswer}
             >
               <i className="fa-solid fa-phone-slash" />
               End Interview
-            </button>
-
-            {/*
-              Automatic conversation flow is now used.
-
-              This button is intentionally hidden from
-              normal flow. It is not needed because AI
-              automatically moves to the next question
-              after speaking feedback + next question.
-            */}
-            <button
-              type="button"
-              className="next-btn"
-              disabled
-              style={{ display: "none" }}
-            >
-              Next Question
-              <i className="fa-solid fa-arrow-right" />
             </button>
           </div>
         </footer>

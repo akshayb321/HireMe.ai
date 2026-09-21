@@ -1,13 +1,11 @@
 import Resume from "../models/Resume.js";
 import ATSAnalysis from "../models/ATSAnalysis.js";
-import model from "../config/gemini.js";
+import model from "../config/groq.js";
 import extractPdfText from "../utils/pdfParser.js";
-import buildATSAnalysisPrompt from "../utils/prompts.js";
+import { buildATSAnalysisPrompt } from "../utils/prompts.js";
 
 export const analyzeResume = async (req, res) => {
   try {
-    console.log("BODY:", req.body);
-    console.log("FILE:", req.file);
     const userId = req.user.id;
 
     const { jobRole } = req.body;
@@ -36,15 +34,15 @@ export const analyzeResume = async (req, res) => {
       });
     }
 
-    // Build Gemini prompt
+    // Build Ai prompt
     const prompt = buildATSAnalysisPrompt(extractedText, jobRole);
 
-    // Send resume to Gemini
+    // Send resume to Ai
     const result = await model.generateContent(prompt);
 
     const responseText = result.response.text();
 
-    // Convert Gemini response into JSON
+    // Convert Ai response into JSON
     const atsData = JSON.parse(responseText);
 
     // Save / update current resume

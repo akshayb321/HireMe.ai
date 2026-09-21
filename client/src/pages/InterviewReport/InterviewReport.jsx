@@ -1,79 +1,219 @@
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import api from "../../config/api.js";
 import "./InterviewReport.css";
 
 const InterviewReport = () => {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Temporary data
-  // Later API se interview ID ke basis par data aayega
-  const interview = {
-    role: "Frontend Developer",
-    date: "September 18, 2026",
-    duration: "24 min",
-    questions: 10,
-    overallScore: 82,
-    technicalScore: 85,
-    communicationScore: 78,
-    problemSolvingScore: 84,
+  const [interview, setInterview] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    summary:
-      "You demonstrated a solid understanding of frontend development concepts. Your technical answers were generally strong, while your communication can be improved by giving more structured and concise responses.",
+  /* =========================================
+     LOAD INTERVIEW REPORT
+  ========================================= */
 
-    strengths: [
-      "Good understanding of React fundamentals",
-      "Strong knowledge of JavaScript concepts",
-      "Able to explain technical solutions clearly",
-      "Good problem-solving approach",
-    ],
+  useEffect(() => {
+    const loadInterviewReport = async () => {
+      if (!id) {
+        toast.error("Interview report not found.");
+        navigate("/interviews");
+        return;
+      }
 
-    improvements: [
-      "Give more structured answers",
-      "Avoid unnecessary pauses while answering",
-      "Improve explanation of complex concepts",
-      "Use more real-world examples",
-    ],
+      try {
+        setLoading(true);
 
-    questions: [
-      {
-        question:
-          "What is the difference between useState and useEffect in React?",
-        answer:
-          "useState is used to manage state in a component, while useEffect is used to perform side effects such as API calls or subscriptions.",
-        score: 85,
-        feedback:
-          "Good answer. You correctly explained the primary purpose of both hooks. Adding a practical example would make the answer stronger.",
-      },
-      {
-        question: "What is event bubbling in JavaScript?",
-        answer:
-          "Event bubbling means an event starts from the target element and then moves upward through its parent elements.",
-        score: 80,
-        feedback:
-          "Correct explanation. You could improve this by mentioning event propagation and a practical DOM example.",
-      },
-      {
-        question: "How would you optimize a React application?",
-        answer:
-          "I would optimize it by reducing unnecessary renders, using memoization, lazy loading components, and optimizing API calls.",
-        score: 82,
-        feedback:
-          "Good points covered. Consider explaining when each optimization technique should actually be used.",
-      },
-    ],
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          toast.error("Authentication required. Please login again.");
+          navigate("/login");
+          return;
+        }
+
+        const response = await api.get(`/interviews/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.data.success || !response.data.data) {
+          toast.error("Interview report could not be loaded.");
+          navigate("/interviews");
+          return;
+        }
+
+        setInterview(response.data.data);
+      } catch (error) {
+        console.error("Load interview report error:", error);
+
+        toast.error(
+          error.response?.data?.message || "Failed to load interview report.",
+        );
+
+        navigate("/interviews");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInterviewReport();
+  }, [id, navigate]);
+
+  /* =========================================
+     FORMAT DATE
+  ========================================= */
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) {
+      return "Date unavailable";
+    }
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Date unavailable";
+    }
+
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
   };
+
+  /* =========================================
+     FORMAT DURATION
+  ========================================= */
+
+  const formatDuration = () => {
+    if (!interview) {
+      return "—";
+    }
+
+    /*
+      If backend already provides duration,
+      use it directly.
+    */
+
+    if (interview.duration) {
+      return interview.duration;
+    }
+
+    /*
+      Otherwise calculate from timestamps
+      if both are available.
+    */
+
+    if (interview.startedAt && interview.completedAt) {
+      const start = new Date(interview.startedAt);
+      const end = new Date(interview.completedAt);
+
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        const durationMinutes = Math.max(1, Math.round((end - start) / 60000));
+
+        return `${durationMinutes} min`;
+      }
+    }
+
+    return "—";
+  };
+
+  /* =========================================
+     SCORE HELPER
+  ========================================= */
+
+  const getScore = (value) => {
+    if (typeof value !== "number") {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(100, value));
+  };
+
+  /* =========================================
+     LOADING STATE
+  ========================================= */
+
+  if (loading) {
+    return (
+      <div className="interview-report">
+        <div className="interview-report-container">
+          <div
+            style={{
+              minHeight: "70vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <i
+              className="fa-solid fa-spinner fa-spin"
+              style={{ fontSize: "28px" }}
+            />
+
+            <p>Loading interview report...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!interview) {
+    return null;
+  }
+
+  /* =========================================
+     INTERVIEW DATA
+  ========================================= */
+
+  const questions = Array.isArray(interview.questions)
+    ? interview.questions
+    : [];
+
+  const overallScore = getScore(interview.overallScore);
+
+  const technicalScore = getScore(interview.technicalScore);
+
+  const communicationScore = getScore(interview.communicationScore);
+
+  const problemSolvingScore = getScore(interview.problemSolvingScore);
+
+  const strengths = Array.isArray(interview.strengths)
+    ? interview.strengths
+    : [];
+
+  const improvements = Array.isArray(interview.improvements)
+    ? interview.improvements
+    : [];
+
+  const interviewRole = interview.role || "Interview";
+
+  const interviewDate = formatDate(
+    interview.completedAt || interview.createdAt || interview.startedAt,
+  );
+
+  const duration = formatDuration();
 
   return (
     <div className="interview-report">
       <div className="interview-report-container">
-        {/* Header */}
+        {/* =========================================
+            HEADER
+        ========================================= */}
+
         <section className="report-header">
           <button
             type="button"
             className="report-back-btn"
             onClick={() => navigate("/interviews")}
           >
-            <i className="fa-solid fa-arrow-left"></i>
+            <i className="fa-solid fa-arrow-left" />
             Back to Interviews
           </button>
 
@@ -81,235 +221,305 @@ const InterviewReport = () => {
             <div>
               <p className="report-eyebrow">Interview Report</p>
 
-              <h1>{interview.role}</h1>
+              <h1>{interviewRole}</h1>
 
               <div className="report-meta">
                 <span>
-                  <i className="fa-regular fa-calendar"></i>
-                  {interview.date}
+                  <i className="fa-regular fa-calendar" />
+
+                  {interviewDate}
                 </span>
 
                 <span>
-                  <i className="fa-regular fa-clock"></i>
-                  {interview.duration}
+                  <i className="fa-regular fa-clock" />
+
+                  {duration}
                 </span>
 
                 <span>
-                  <i className="fa-solid fa-list-check"></i>
-                  {interview.questions.length} Questions
+                  <i className="fa-solid fa-list-check" />
+                  {questions.length} Questions
                 </span>
               </div>
             </div>
 
             <div className="report-overall-score">
-              <span className="report-score-value">
-                {interview.overallScore}%
-              </span>
+              <span className="report-score-value">{overallScore}%</span>
 
               <span className="report-score-label">Overall Score</span>
             </div>
           </div>
         </section>
 
-        {/* Performance Overview */}
+        {/* =========================================
+            PERFORMANCE OVERVIEW
+        ========================================= */}
+
         <section className="report-section">
           <div className="report-section-heading">
             <p>Performance</p>
+
             <h2>Performance Overview</h2>
           </div>
 
           <div className="report-score-grid">
+            {/* Overall */}
+
             <div className="report-score-card">
               <div className="report-score-card-top">
                 <span>Overall</span>
-                <i className="fa-solid fa-chart-line"></i>
+
+                <i className="fa-solid fa-chart-line" />
               </div>
 
-              <strong>{interview.overallScore}%</strong>
+              <strong>{overallScore}%</strong>
 
               <div className="report-progress">
                 <span
                   style={{
-                    width: `${interview.overallScore}%`,
+                    width: `${overallScore}%`,
                   }}
-                ></span>
+                />
               </div>
             </div>
+
+            {/* Technical */}
 
             <div className="report-score-card">
               <div className="report-score-card-top">
                 <span>Technical</span>
-                <i className="fa-solid fa-code"></i>
+
+                <i className="fa-solid fa-code" />
               </div>
 
-              <strong>{interview.technicalScore}%</strong>
+              <strong>{technicalScore}%</strong>
 
               <div className="report-progress">
                 <span
                   style={{
-                    width: `${interview.technicalScore}%`,
+                    width: `${technicalScore}%`,
                   }}
-                ></span>
+                />
               </div>
             </div>
+
+            {/* Communication */}
 
             <div className="report-score-card">
               <div className="report-score-card-top">
                 <span>Communication</span>
-                <i className="fa-solid fa-comments"></i>
+
+                <i className="fa-solid fa-comments" />
               </div>
 
-              <strong>{interview.communicationScore}%</strong>
+              <strong>{communicationScore}%</strong>
 
               <div className="report-progress">
                 <span
                   style={{
-                    width: `${interview.communicationScore}%`,
+                    width: `${communicationScore}%`,
                   }}
-                ></span>
+                />
               </div>
             </div>
+
+            {/* Problem Solving */}
 
             <div className="report-score-card">
               <div className="report-score-card-top">
                 <span>Problem Solving</span>
-                <i className="fa-solid fa-lightbulb"></i>
+
+                <i className="fa-solid fa-lightbulb" />
               </div>
 
-              <strong>{interview.problemSolvingScore}%</strong>
+              <strong>{problemSolvingScore}%</strong>
 
               <div className="report-progress">
                 <span
                   style={{
-                    width: `${interview.problemSolvingScore}%`,
+                    width: `${problemSolvingScore}%`,
                   }}
-                ></span>
+                />
               </div>
             </div>
           </div>
         </section>
 
-        {/* AI Summary */}
+        {/* =========================================
+            AI SUMMARY
+        ========================================= */}
+
         <section className="report-section">
           <div className="report-section-heading">
             <p>AI Analysis</p>
+
             <h2>Overall Feedback</h2>
           </div>
 
           <div className="report-summary-card">
             <div className="report-summary-icon">
-              <i className="fa-solid fa-wand-magic-sparkles"></i>
+              <i className="fa-solid fa-wand-magic-sparkles" />
             </div>
 
-            <p>{interview.summary}</p>
+            <p>
+              {interview.summary ||
+                "No overall feedback is available for this interview."}
+            </p>
           </div>
         </section>
 
-        {/* Strengths & Improvements */}
+        {/* =========================================
+            STRENGTHS & IMPROVEMENTS
+        ========================================= */}
+
         <section className="report-section">
           <div className="report-feedback-grid">
+            {/* Strengths */}
+
             <div className="report-feedback-card">
               <div className="report-feedback-header">
                 <div className="report-feedback-icon">
-                  <i className="fa-solid fa-check"></i>
+                  <i className="fa-solid fa-check" />
                 </div>
 
                 <div>
                   <p>Your Strengths</p>
+
                   <h2>What you did well</h2>
                 </div>
               </div>
 
-              <ul>
-                {interview.strengths.map((strength) => (
-                  <li key={strength}>
-                    <i className="fa-solid fa-check"></i>
-                    <span>{strength}</span>
-                  </li>
-                ))}
-              </ul>
+              {strengths.length > 0 ? (
+                <ul>
+                  {strengths.map((strength, index) => (
+                    <li key={`${strength}-${index}`}>
+                      <i className="fa-solid fa-check" />
+
+                      <span>{strength}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="report-empty-text">No strengths were provided.</p>
+              )}
             </div>
+
+            {/* Improvements */}
 
             <div className="report-feedback-card">
               <div className="report-feedback-header">
                 <div className="report-feedback-icon improvement">
-                  <i className="fa-solid fa-arrow-up"></i>
+                  <i className="fa-solid fa-arrow-up" />
                 </div>
 
                 <div>
                   <p>Areas to Improve</p>
+
                   <h2>Focus on these areas</h2>
                 </div>
               </div>
 
-              <ul>
-                {interview.improvements.map((improvement) => (
-                  <li key={improvement}>
-                    <i className="fa-solid fa-arrow-right"></i>
-                    <span>{improvement}</span>
-                  </li>
-                ))}
-              </ul>
+              {improvements.length > 0 ? (
+                <ul>
+                  {improvements.map((improvement, index) => (
+                    <li key={`${improvement}-${index}`}>
+                      <i className="fa-solid fa-arrow-right" />
+
+                      <span>{improvement}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="report-empty-text">
+                  No improvement areas were provided.
+                </p>
+              )}
             </div>
           </div>
         </section>
 
-        {/* Question Review */}
+        {/* =========================================
+            QUESTION-WISE REVIEW
+        ========================================= */}
+
         <section className="report-section report-questions-section">
           <div className="report-section-heading">
             <p>Detailed Review</p>
+
             <h2>Question-wise Feedback</h2>
           </div>
 
-          <div className="report-questions-list">
-            {interview.questions.map((item, index) => (
-              <div className="report-question-card" key={index}>
-                <div className="report-question-header">
-                  <div className="report-question-number">Q{index + 1}</div>
+          {questions.length > 0 ? (
+            <div className="report-questions-list">
+              {questions.map((item, index) => {
+                const questionScore = getScore(item.score);
 
-                  <div className="report-question-title">
-                    <h3>{item.question}</h3>
+                return (
+                  <div className="report-question-card" key={item._id || index}>
+                    <div className="report-question-header">
+                      <div className="report-question-number">Q{index + 1}</div>
+
+                      <div className="report-question-title">
+                        <h3>{item.question || "Question unavailable"}</h3>
+                      </div>
+
+                      <div className="report-question-score">
+                        <strong>{questionScore}%</strong>
+
+                        <span>Score</span>
+                      </div>
+                    </div>
+
+                    {/* Answer */}
+
+                    <div className="report-answer">
+                      <p className="report-answer-label">Your Answer</p>
+
+                      <p>{item.answer || "No answer recorded."}</p>
+                    </div>
+
+                    {/* Feedback */}
+
+                    <div className="report-question-feedback">
+                      <p className="report-answer-label">AI Feedback</p>
+
+                      <p>{item.feedback || "No feedback available."}</p>
+                    </div>
                   </div>
-
-                  <div className="report-question-score">
-                    <strong>{item.score}%</strong>
-                    <span>Score</span>
-                  </div>
-                </div>
-
-                <div className="report-answer">
-                  <p className="report-answer-label">Your Answer</p>
-
-                  <p>{item.answer}</p>
-                </div>
-
-                <div className="report-question-feedback">
-                  <p className="report-answer-label">AI Feedback</p>
-
-                  <p>{item.feedback}</p>
-                </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="report-summary-card">
+              <div className="report-summary-icon">
+                <i className="fa-solid fa-circle-info" />
               </div>
-            ))}
-          </div>
+
+              <p>No question-wise data is available for this interview.</p>
+            </div>
+          )}
         </section>
 
-        {/* Bottom Actions */}
+        {/* =========================================
+            BOTTOM ACTIONS
+        ========================================= */}
+
         <section className="report-actions">
           <button
             type="button"
             className="report-secondary-btn"
             onClick={() => navigate("/interviews")}
           >
-            <i className="fa-solid fa-arrow-left"></i>
+            <i className="fa-solid fa-arrow-left" />
             Back to Interviews
           </button>
 
           <button
             type="button"
             className="report-primary-btn"
-            onClick={() => navigate("/interview/new")}
+            onClick={() => navigate("/interview-setup")}
           >
-            <i className="fa-solid fa-microphone"></i>
+            <i className="fa-solid fa-microphone" />
             Start New Interview
           </button>
         </section>
