@@ -54,7 +54,7 @@ export const analyzeResume = async (req, res) => {
         extractedText,
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
         runValidators: true,
       },
@@ -74,7 +74,7 @@ export const analyzeResume = async (req, res) => {
         suggestions: atsData.suggestions,
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
         runValidators: true,
       },

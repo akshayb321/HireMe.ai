@@ -1,104 +1,129 @@
+/* =========================================================
+   HireMe.ai - ATS Score
+   Theme:
+   Sidebar  : #0B1942
+   Purple   : #6246EA
+   Lavender : #B9A8FF
+   Background: #F7F8FC
+   ========================================================= */
+
 .ats-score {
   width: 100%;
   min-height: 100%;
-  background: #faf9fc;
+  color: #17203d;
 }
 
 .ats-score-container {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 42px 40px 60px;
 }
 
-/* =========================
+/* =========================================================
    HEADER
-========================= */
+   ========================================================= */
 
 .ats-header {
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
 .ats-eyebrow {
   margin: 0 0 7px;
-  color: #683cb4;
+  color: #6246ea;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
 }
 
 .ats-header h1 {
   margin: 0;
-  color: #19162d;
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.8px;
+  color: #111a3a;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.7px;
 }
 
 .ats-subtitle {
-  max-width: 650px;
-  margin: 10px 0 0;
-  color: #777181;
-  font-size: 13.5px;
-  font-weight: 500;
-  line-height: 1.7;
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: #737a91;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
-/* =========================
-   UPLOAD CARD
-========================= */
+/* =========================================================
+   COMMON CARD
+   ========================================================= */
+
+.ats-upload-card,
+.ats-ready-card,
+.ats-main-score-card,
+.ats-score-info-card,
+.ats-breakdown-card,
+.ats-keyword-card,
+.ats-suggestions-card {
+  background: #ffffff;
+  border: 1px solid #e7e9f2;
+  border-radius: 16px;
+  box-shadow: 0 5px 18px rgba(25, 35, 75, 0.045);
+}
+
+/* =========================================================
+   UPLOAD / CONTROL CARD
+   ========================================================= */
 
 .ats-upload-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.2fr);
+  gap: 28px;
   align-items: center;
-  justify-content: space-between;
-  gap: 25px;
-  padding: 22px 24px;
-  border: 1px solid #eeeaf5;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 7px 24px rgba(25, 22, 45, 0.035);
+  padding: 22px;
+  margin-bottom: 22px;
 }
 
 .ats-upload-left {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-width: 0;
+  gap: 15px;
 }
 
 .ats-upload-icon {
-  width: 45px;
-  height: 45px;
-  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: #f4effb;
-  color: #683cb4;
+  border-radius: 13px;
+  background: #f0edff;
+  color: #6246ea;
+  font-size: 19px;
 }
 
-.ats-upload-icon i {
-  font-size: 17px;
+.ats-upload-left > div:last-child {
+  min-width: 0;
 }
 
 .ats-card-label {
   margin: 0 0 4px;
-  color: #8b72b8;
+  color: #858ba0;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
 }
 
 .ats-upload-left h2 {
   margin: 0;
+  max-width: 360px;
   overflow: hidden;
-  color: #29243a;
-  font-size: 14px;
+  color: #18213f;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -106,282 +131,262 @@
 .ats-upload-left span {
   display: block;
   margin-top: 4px;
-  color: #9992a3;
+  color: #9298aa;
   font-size: 11px;
-  font-weight: 500;
 }
 
-/* =========================
-   JOB ROLE
-========================= */
+/* =========================================================
+   ROLE SECTION
+   ========================================================= */
 
 .ats-role-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .ats-role-label {
-  display: none;
+  display: block;
+  margin-bottom: 7px;
+  color: #3a425e;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .ats-role-select,
 .ats-custom-role {
-  height: 40px;
-  min-width: 210px;
-  padding: 0 12px;
-  border: 1px solid #e2d9ef;
-  border-radius: 9px;
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  border: 1px solid #dfe2ec;
+  border-radius: 10px;
   outline: none;
-  background: #ffffff;
-  color: #4e485b;
+  background: #fbfbfd;
+  color: #252d48;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
   transition:
     border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.ats-role-select {
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.ats-custom-role {
+  margin-top: 9px;
+  padding: 0 12px;
 }
 
 .ats-role-select:focus,
 .ats-custom-role:focus {
-  border-color: #683cb4;
-  box-shadow: 0 0 0 3px rgba(104, 60, 180, 0.08);
+  border-color: #8d7aea;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(98, 70, 234, 0.09);
 }
 
-.ats-custom-role {
-  cursor: text;
+.ats-role-select:hover,
+.ats-custom-role:hover {
+  border-color: #c7c3df;
 }
 
-.ats-custom-role::placeholder {
-  color: #aaa4b2;
-  font-weight: 500;
-}
-
-/* =========================
-   UPLOAD ACTIONS
-========================= */
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
 
 .ats-upload-actions {
   display: flex;
-  align-items: center;
   gap: 9px;
-  flex-shrink: 0;
+  margin-top: 10px;
 }
 
 .ats-upload-btn,
 .ats-analyze-btn {
-  min-height: 40px;
-  padding: 0 14px;
+  height: 39px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
+  box-sizing: border-box;
   border-radius: 9px;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition:
-    color 0.2s ease,
-    background 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .ats-upload-btn {
-  border: 1px solid #e2d9ef;
-  background: #ffffff;
-  color: #683cb4;
+  padding: 0 14px;
+  border: 1px solid #ddd9f8;
+  background: #f5f3ff;
+  color: #6246ea;
 }
 
 .ats-upload-btn:hover {
-  background: #f7f3fb;
-  border-color: #cfc0e4;
-}
-
-.ats-analyze-btn {
-  border: 1px solid #683cb4;
-  background: #683cb4;
-  color: #ffffff;
-  box-shadow: 0 5px 14px rgba(104, 60, 180, 0.14);
-}
-
-.ats-analyze-btn:hover {
-  background: #59309e;
-  border-color: #59309e;
-  box-shadow: 0 8px 20px rgba(104, 60, 180, 0.2);
+  border-color: #c8c0f3;
+  background: #efecff;
   transform: translateY(-1px);
 }
 
-.ats-upload-btn i,
-.ats-analyze-btn i {
-  font-size: 11px;
+.ats-analyze-btn {
+  min-width: 145px;
+  padding: 0 15px;
+  border: 1px solid #6246ea;
+  background: #6246ea;
+  color: #ffffff;
+  box-shadow: 0 5px 13px rgba(98, 70, 234, 0.18);
+}
+
+.ats-analyze-btn:hover:not(:disabled) {
+  background: #5539d4;
+  border-color: #5539d4;
+  box-shadow: 0 7px 17px rgba(98, 70, 234, 0.24);
+  transform: translateY(-1px);
 }
 
 .ats-analyze-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.48;
   cursor: not-allowed;
   box-shadow: none;
-  transform: none;
 }
 
-.ats-analyze-btn:disabled:hover {
-  background: #683cb4;
-  border-color: #683cb4;
-  box-shadow: none;
-  transform: none;
-}
-
-/* =========================
-   ATS STATES
-========================= */
+/* =========================================================
+   READY CARD
+   ========================================================= */
 
 .ats-ready-card {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 13px;
-  margin-top: 22px;
-  padding: 20px 24px;
-  border: 1px solid #eeeaf5;
-  border-radius: 15px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(25, 22, 45, 0.03);
+  gap: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  background: #fcfbff;
+  border-color: #e6e0ff;
 }
 
 .ats-ready-icon {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: #f4effb;
-  color: #683cb4;
-}
-
-.ats-ready-icon i {
-  font-size: 14px;
+  border-radius: 11px;
+  background: #eeeaff;
+  color: #6246ea;
+  font-size: 16px;
 }
 
 .ats-ready-card h3 {
-  margin: 0 0 4px;
-  color: #29243a;
-  font-size: 14px;
-  font-weight: 750;
+  margin: 0 0 3px;
+  color: #252d49;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .ats-ready-card p {
   margin: 0;
-  color: #777181;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.6;
+  color: #858ba0;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
-.ats-error {
-  margin-top: 14px;
-  padding: 11px 14px;
-  border: 1px solid #eadfe8;
-  border-radius: 9px;
-  background: #fffafb;
-  color: #9a5368;
-  font-size: 11.5px;
-  font-weight: 600;
-}
+/* =========================================================
+   ANALYSIS CONTEXT
+   ========================================================= */
 
 .ats-analysis-context {
+  min-height: 42px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 22px;
-  color: #777181;
-  font-size: 11.5px;
-  font-weight: 500;
-}
-
-.ats-analysis-context i {
-  color: #683cb4;
+  gap: 9px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  margin-bottom: 18px;
+  border: 1px solid #e5e1fb;
+  border-radius: 11px;
+  background: #faf9ff;
+  color: #6e7388;
   font-size: 11px;
 }
 
+.ats-analysis-context > i {
+  color: #6246ea;
+  font-size: 13px;
+}
+
 .ats-analysis-context strong {
-  color: #4e485b;
+  color: #3c318e;
   font-weight: 700;
 }
 
-/* =========================
+/* =========================================================
    SCORE OVERVIEW
-========================= */
+   ========================================================= */
 
 .ats-overview {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
   gap: 18px;
-  margin-top: 30px;
-}
-
-.ats-main-score-card,
-.ats-score-info-card {
-  border: 1px solid #eeeaf5;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 7px 24px rgba(25, 22, 45, 0.035);
+  margin-bottom: 30px;
 }
 
 .ats-main-score-card {
+  min-height: 190px;
   display: flex;
   align-items: center;
   gap: 28px;
-  padding: 27px;
+  padding: 25px;
+  box-sizing: border-box;
 }
 
 .ats-score-circle {
   --score: 0;
 
-  width: 130px;
-  height: 130px;
-  flex-shrink: 0;
-
+  position: relative;
+  width: 145px;
+  height: 145px;
+  flex: 0 0 145px;
   display: flex;
   align-items: center;
   justify-content: center;
-
   border-radius: 50%;
-
-  background: conic-gradient(#683cb4 calc(var(--score) * 1%), #eee7f8 0);
-
+  background: conic-gradient(#6246ea calc(var(--score) * 1%), #ebeaf3 0);
   transform: rotate(0deg);
 }
 
-.ats-score-circle-inner {
-  width: 114px;
-  height: 114px;
-
+.ats-score-circle::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
   border-radius: 50%;
   background: #ffffff;
+}
 
+.ats-score-circle-inner {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-
-  transform: none;
+  align-items: baseline;
+  gap: 2px;
 }
 
-.ats-score-circle strong {
-  color: #19162d;
-  font-size: 31px;
-  font-weight: 800;
-  letter-spacing: -1px;
+.ats-score-circle-inner strong {
+  color: #18213f;
+  font-size: 35px;
+  line-height: 1;
+  font-weight: 750;
+  letter-spacing: -1.5px;
 }
 
-.ats-score-circle span {
-  margin-left: 2px;
-  color: #9992a3;
+.ats-score-circle-inner span {
+  color: #9297a9;
   font-size: 11px;
   font-weight: 600;
 }
@@ -391,157 +396,147 @@
 }
 
 .ats-main-score-content h2 {
-  margin: 4px 0 7px;
-  color: #19162d;
-  font-size: 19px;
+  margin: 4px 0 8px;
+  color: #1d2745;
+  font-size: 20px;
+  line-height: 1.3;
   font-weight: 750;
+  letter-spacing: -0.3px;
 }
 
 .ats-main-score-content > p:last-child {
-  max-width: 470px;
+  max-width: 560px;
   margin: 0;
-  color: #777181;
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.7;
+  color: #7d8398;
+  font-size: 12px;
+  line-height: 1.65;
 }
+
+/* =========================================================
+   SCORE INFO
+   ========================================================= */
 
 .ats-score-info-card {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 27px;
+  gap: 13px;
+  padding: 22px;
+  box-sizing: border-box;
+  background: #fdfcff;
+  border-color: #e5e0fb;
 }
 
 .ats-info-icon {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: #f4effb;
-  color: #683cb4;
-}
-
-.ats-info-icon i {
+  background: #eeeaff;
+  color: #6246ea;
   font-size: 14px;
 }
 
 .ats-score-info-card h3 {
   margin: 1px 0 7px;
-  color: #29243a;
-  font-size: 14px;
-  font-weight: 750;
+  color: #303852;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .ats-score-info-card p {
   margin: 0;
-  color: #777181;
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.7;
+  color: #80869a;
+  font-size: 11px;
+  line-height: 1.65;
 }
 
-/* =========================
-   SECTIONS
-========================= */
+/* =========================================================
+   SECTION HEADING
+   ========================================================= */
 
 .ats-section {
-  margin-top: 38px;
+  margin-bottom: 30px;
 }
 
 .ats-section-heading {
-  margin-bottom: 17px;
+  margin-bottom: 14px;
 }
 
 .ats-section-heading p {
   margin: 0 0 4px;
-  color: #8b72b8;
+  color: #6246ea;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
 }
 
 .ats-section-heading h2 {
   margin: 0;
-  color: #19162d;
-  font-size: 21px;
+  color: #202946;
+  font-size: 19px;
+  line-height: 1.3;
   font-weight: 750;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.35px;
 }
 
-/* =========================
-   BREAKDOWN
-========================= */
+/* =========================================================
+   SCORE BREAKDOWN
+   ========================================================= */
 
 .ats-breakdown-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .ats-breakdown-card {
-  position: relative;
-  overflow: hidden;
-  padding: 19px;
-  border: 1px solid #eeeaf5;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(25, 22, 45, 0.03);
+  min-width: 0;
+  padding: 16px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.ats-breakdown-card::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: #683cb4;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.25s ease;
-}
-
-.ats-breakdown-card:hover::after {
-  transform: scaleX(1);
+.ats-breakdown-card:hover {
+  transform: translateY(-2px);
+  border-color: #ddd8f5;
+  box-shadow: 0 9px 22px rgba(25, 35, 75, 0.07);
 }
 
 .ats-breakdown-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ats-breakdown-icon {
-  width: 35px;
-  height: 35px;
+  width: 33px;
+  height: 33px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  background: #f4effb;
-  color: #683cb4;
-}
-
-.ats-breakdown-icon i {
-  font-size: 13px;
+  background: #f0edff;
+  color: #6246ea;
+  font-size: 12px;
 }
 
 .ats-breakdown-top strong {
-  color: #683cb4;
-  font-size: 16px;
-  font-weight: 800;
+  color: #3d328f;
+  font-size: 14px;
+  font-weight: 750;
 }
 
 .ats-breakdown-card h3 {
-  margin: 14px 0 11px;
-  color: #4e485b;
-  font-size: 12px;
+  margin: 12px 0 10px;
+  color: #333b55;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -549,33 +544,30 @@
   width: 100%;
   height: 5px;
   overflow: hidden;
-  border-radius: 999px;
-  background: #eeeaf5;
+  border-radius: 20px;
+  background: #ececf3;
 }
 
 .ats-progress span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #683cb4;
+  background: #6246ea;
 }
 
-/* =========================
+/* =========================================================
    KEYWORDS
-========================= */
+   ========================================================= */
 
 .ats-keywords-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .ats-keyword-card {
-  padding: 23px;
-  border: 1px solid #eeeaf5;
-  border-radius: 15px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(25, 22, 45, 0.035);
+  min-width: 0;
+  padding: 20px;
 }
 
 .ats-keyword-header {
@@ -583,333 +575,395 @@
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  margin-bottom: 19px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ececf2;
 }
 
 .ats-keyword-header p {
   margin: 0 0 3px;
-  color: #8b72b8;
-  font-size: 10px;
+  color: #9499aa;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
 }
 
 .ats-keyword-header h3 {
   margin: 0;
-  color: #29243a;
-  font-size: 15px;
-  font-weight: 750;
+  color: #303850;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .ats-keyword-count {
-  min-width: 31px;
-  height: 31px;
-  display: flex;
+  min-width: 29px;
+  height: 29px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  padding: 0 8px;
   border-radius: 9px;
-  background: #f4effb;
-  color: #683cb4;
+  background: #f0edff;
+  color: #6246ea;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 750;
 }
 
 .ats-keywords {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
 }
 
 .ats-keyword {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 0 10px;
+  gap: 5px;
+  min-height: 27px;
+  box-sizing: border-box;
+  padding: 0 9px;
   border-radius: 7px;
-  font-size: 11px;
-  font-weight: 650;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .ats-keyword.matched {
-  border: 1px solid #e5dcf1;
-  background: #f8f5fc;
-  color: #68499b;
+  background: #f0edff;
+  color: #4b3aaf;
+  border: 1px solid #e1dcfb;
 }
 
 .ats-keyword.missing {
-  border: 1px solid #e9e4ee;
-  background: #faf9fb;
-  color: #726b7b;
+  background: #faf8ff;
+  color: #6e668f;
+  border: 1px solid #e9e5f4;
 }
 
-.ats-keyword i {
+.ats-keyword.matched i {
+  color: #6246ea;
   font-size: 8px;
 }
 
-/* =========================
-   SUGGESTIONS
-========================= */
+.ats-keyword.missing i {
+  color: #8e87ad;
+  font-size: 8px;
+}
+
+/* =========================================================
+   AI SUGGESTIONS
+   ========================================================= */
 
 .ats-suggestions-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #eeeaf5;
-  border-radius: 15px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(25, 22, 45, 0.035);
+  overflow: hidden;
+  padding: 0;
 }
 
 .ats-suggestion {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 17px 21px;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 16px 19px;
 }
 
 .ats-suggestion + .ats-suggestion {
-  border-top: 1px solid #f0edf4;
+  border-top: 1px solid #ececf2;
 }
 
 .ats-suggestion-number {
-  width: 29px;
-  height: 29px;
-  flex-shrink: 0;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: #f4effb;
-  color: #683cb4;
+  background: #f0edff;
+  color: #6246ea;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 750;
 }
 
 .ats-suggestion p {
-  margin: 0;
-  color: #625c6d;
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.6;
+  margin: 3px 0 0;
+  color: #626a82;
+  font-size: 11px;
+  line-height: 1.65;
 }
 
-/* =========================
-   RESPONSIVE
-========================= */
+/* =========================================================
+   TABLET
+   ========================================================= */
 
-@media (max-width: 1050px) {
-  .ats-score-container {
-    padding: 38px 30px 52px;
-  }
-
-  .ats-breakdown-grid {
-    grid-template-columns: repeat(3, 1fr);
+@media (max-width: 1100px) {
+  .ats-upload-card {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 
   .ats-overview {
     grid-template-columns: 1fr;
   }
 
-  .ats-role-wrapper {
-    width: 100%;
-    align-items: center;
-  }
-
-  .ats-role-select,
-  .ats-custom-role {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-@media (max-width: 800px) {
-  .ats-upload-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .ats-upload-actions {
-    width: 100%;
-  }
-
-  .ats-upload-btn,
-  .ats-analyze-btn {
-    flex: 1;
-  }
-
-  .ats-role-wrapper {
-    width: 100%;
-    align-items: stretch;
-    flex-wrap: wrap;
-  }
-
-  .ats-role-select,
-  .ats-custom-role {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .ats-role-wrapper .ats-upload-actions {
-    width: 100%;
-  }
-
-  .ats-keywords-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 650px) {
-  .ats-score-container {
-    padding: 30px 20px 45px;
-  }
-
-  .ats-header h1 {
-    font-size: 26px;
-  }
-
-  .ats-subtitle {
-    font-size: 12.5px;
-  }
-
   .ats-breakdown-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
 
-  .ats-main-score-card {
-    align-items: center;
-    flex-direction: column;
-    gap: 20px;
-    padding: 22px;
-  }
+/* =========================================================
+   SMALL TABLET
+   ========================================================= */
 
-  .ats-score-circle {
-    width: 115px;
-    height: 115px;
-  }
-
-  .ats-score-circle-inner {
-    width: 99px;
-    height: 99px;
-  }
-
-  .ats-score-circle strong {
+@media (max-width: 900px) {
+  .ats-header h1 {
     font-size: 27px;
   }
 
-  .ats-score-info-card {
-    padding: 22px;
+  .ats-subtitle {
+    max-width: 650px;
+  }
+
+  .ats-main-score-card {
+    min-height: 180px;
+  }
+
+  .ats-breakdown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 500px) {
-  .ats-score-container {
-    padding: 25px 16px 38px;
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .ats-header {
+    margin-bottom: 18px;
   }
 
-  .ats-header {
-    margin-bottom: 24px;
+  .ats-eyebrow {
+    font-size: 10px;
+    margin-bottom: 6px;
   }
 
   .ats-header h1 {
     font-size: 24px;
+    letter-spacing: -0.5px;
+  }
+
+  .ats-subtitle {
+    margin-top: 7px;
+    font-size: 11px;
+    line-height: 1.6;
   }
 
   .ats-upload-card {
-    padding: 19px;
+    gap: 20px;
+    padding: 16px;
+    border-radius: 14px;
+    margin-bottom: 18px;
   }
 
   .ats-upload-left {
-    width: 100%;
+    gap: 12px;
+  }
+
+  .ats-upload-icon {
+    width: 43px;
+    height: 43px;
+    flex-basis: 43px;
+    border-radius: 11px;
+    font-size: 16px;
   }
 
   .ats-upload-left h2 {
-    max-width: 220px;
+    max-width: calc(100vw - 100px);
+    font-size: 13px;
   }
 
-  .ats-role-wrapper {
-    flex-direction: column;
-    align-items: stretch;
+  .ats-upload-left span {
+    font-size: 10px;
   }
 
-  .ats-role-select,
-  .ats-custom-role {
-    width: 100%;
-    flex: none;
-  }
-
-  .ats-role-wrapper .ats-upload-actions {
-    flex-direction: column;
-    width: 100%;
+  .ats-upload-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .ats-upload-btn,
   .ats-analyze-btn {
     width: 100%;
+    height: 40px;
+  }
+
+  .ats-ready-card {
+    padding: 15px;
+    gap: 11px;
+    margin-bottom: 20px;
+  }
+
+  .ats-ready-icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .ats-ready-card h3 {
+    font-size: 12px;
+  }
+
+  .ats-ready-card p {
+    font-size: 10px;
+  }
+
+  .ats-analysis-context {
+    margin-bottom: 14px;
+    font-size: 10px;
+  }
+
+  .ats-overview {
+    gap: 12px;
+    margin-bottom: 25px;
+  }
+
+  .ats-main-score-card {
+    min-height: auto;
+    flex-direction: column;
+    text-align: center;
+    gap: 18px;
+    padding: 21px 16px;
+  }
+
+  .ats-score-circle {
+    width: 130px;
+    height: 130px;
+    flex-basis: 130px;
+  }
+
+  .ats-score-circle-inner strong {
+    font-size: 31px;
+  }
+
+  .ats-main-score-content h2 {
+    font-size: 17px;
+  }
+
+  .ats-main-score-content > p:last-child {
+    font-size: 10px;
+  }
+
+  .ats-score-info-card {
+    padding: 17px;
+  }
+
+  .ats-score-info-card h3 {
+    font-size: 12px;
+  }
+
+  .ats-score-info-card p {
+    font-size: 10px;
+  }
+
+  .ats-section {
+    margin-bottom: 25px;
+  }
+
+  .ats-section-heading {
+    margin-bottom: 11px;
+  }
+
+  .ats-section-heading h2 {
+    font-size: 17px;
+  }
+
+  .ats-breakdown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .ats-breakdown-card {
+    padding: 13px;
+    border-radius: 13px;
+  }
+
+  .ats-breakdown-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ats-breakdown-top strong {
+    font-size: 12px;
+  }
+
+  .ats-breakdown-card h3 {
+    margin: 10px 0 8px;
+    font-size: 10px;
+  }
+
+  .ats-keywords-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .ats-keyword-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .ats-suggestion {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .ats-suggestion p {
+    font-size: 10px;
+  }
+}
+
+/* =========================================================
+   VERY SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 420px) {
+  .ats-header h1 {
+    font-size: 22px;
+  }
+
+  .ats-upload-card {
+    padding: 14px;
+  }
+
+  .ats-role-select,
+  .ats-custom-role {
+    height: 40px;
+    font-size: 11px;
   }
 
   .ats-breakdown-grid {
     grid-template-columns: 1fr;
   }
 
-  .ats-section {
-    margin-top: 31px;
+  .ats-main-score-card {
+    padding: 18px 14px;
   }
 
-  .ats-section-heading h2 {
-    font-size: 19px;
+  .ats-score-circle {
+    width: 120px;
+    height: 120px;
+    flex-basis: 120px;
+  }
+
+  .ats-score-circle-inner strong {
+    font-size: 29px;
+  }
+
+  .ats-score-info-card {
+    padding: 14px;
   }
 
   .ats-keyword-card {
-    padding: 19px;
+    padding: 14px;
   }
-
-  .ats-suggestion {
-    align-items: flex-start;
-    padding: 15px 17px;
-  }
-
-  .ats-ready-card {
-    justify-content: flex-start;
-    padding: 17px;
-  }
-}
-
-@media (max-width: 360px) {
-  .ats-score-container {
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  .ats-upload-card {
-    padding: 16px;
-  }
-
-  .ats-upload-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  .ats-main-score-card,
-  .ats-score-info-card {
-    padding: 18px;
-  }
-}
-
-.ats-score-circle {
-  width: 105px;
-  height: 105px;
-}
-
-.ats-score-circle-inner {
-  width: 89px;
-  height: 89px;
-}
-
-.ats-score-circle strong {
-  font-size: 25px;
-}
-
-.ats-score-circle span {
-  font-size: 10px;
 }

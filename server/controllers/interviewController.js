@@ -162,7 +162,7 @@ export const startInterview = async (req, res) => {
           extractedText,
         },
         {
-          new: true,
+          returnDocument: "after",
           upsert: true,
           runValidators: true,
         },
@@ -685,6 +685,55 @@ export const completeInterview = async (req, res) => {
   }
 };
 
+/* =========================================================
+   END INTERVIEW
+========================================================= */
+export const endInterview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const interview = await Interview.findOne({
+      _id: id,
+      userId,
+    });
+
+    if (!interview) {
+      return res.status(404).json({
+        success: false,
+        message: "Interview not found",
+      });
+    }
+
+    if (interview.status === "completed") {
+      return res.status(200).json({
+        success: true,
+        message: "Interview is already completed",
+      });
+    }
+
+    interview.status = "completed";
+    interview.completedAt = new Date();
+
+    await interview.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Interview ended successfully",
+      data: {
+        interviewId: interview._id,
+        status: interview.status,
+      },
+    });
+  } catch (error) {
+    console.error("End interview error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to end interview",
+    });
+  }
+};
 /* =========================================================
    GET SINGLE INTERVIEW REPORT
 ========================================================= */

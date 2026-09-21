@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+
 import api from "../../config/api.js";
 import "./InterviewSetup.css";
 
@@ -22,30 +23,53 @@ const roleOptions = [
 const interviewTypes = [
   {
     value: "technical",
-    title: "Technical",
-    description: "Skills & technical concepts",
+    label: "Technical",
+    description: "Technical questions",
     icon: "fa-solid fa-code",
   },
   {
     value: "behavioral",
-    title: "Behavioral",
-    description: "HR & personality",
-    icon: "fa-solid fa-user-group",
+    label: "Behavioral",
+    description: "Soft skills & behavior",
+    icon: "fa-solid fa-comments",
   },
   {
     value: "mixed",
-    title: "Mixed",
+    label: "Mixed",
     description: "Technical + behavioral",
     icon: "fa-solid fa-layer-group",
   },
 ];
 
-function InterviewSetup({ existingResume = null, onStartInterview }) {
-  const fileInputRef = useRef(null);
-  const navigate = useNavigate();
+const difficultyOptions = [
+  {
+    value: "easy",
+    label: "Easy",
+    description: "Beginner friendly",
+  },
+  {
+    value: "medium",
+    label: "Medium",
+    description: "Balanced level",
+  },
+  {
+    value: "hard",
+    label: "Hard",
+    description: "Advanced level",
+  },
+];
 
-  const [resume, setResume] = useState(existingResume);
+const questionOptions = [5, 10, 15];
+
+const InterviewSetup = ({ existingResume = null, onStartInterview }) => {
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
+  const [step, setStep] = useState(1);
   const [manualMode, setManualMode] = useState(false);
+
+  const [resume, setResume] = useState(existingResume || null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const [role, setRole] = useState("");
   const [customRole, setCustomRole] = useState("");
@@ -61,104 +85,120 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
     about: "",
   });
 
-  const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  /* =========================================
-     FILE UPLOAD
-  ========================================= */
+  const existingResumeName =
+    existingResume?.resumeName ||
+    existingResume?.name ||
+    existingResume?.fileName ||
+    (typeof existingResume === "string" ? existingResume : "");
 
-  const handleFileChange = (event) => {
+  const displayedResumeName =
+    selectedFile?.name ||
+    resume?.resumeName ||
+    resume?.name ||
+    resume?.fileName ||
+    existingResumeName;
+
+  const hasResume = Boolean(selectedFile || resume || existingResume);
+
+  const finalRole = role === "Other" ? customRole.trim() : role.trim();
+
+  /* =====================================================
+     RESUME
+  ===================================================== */
+
+  const handleResumeUpload = (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
     if (file.type !== "application/pdf") {
-      setSelectedFile(null);
-
       toast.error("Please upload a PDF resume only.");
 
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
+      event.target.value = "";
       return;
     }
 
     setSelectedFile(file);
-
-    setResume({
-      fileName: file.name,
-      fileType: file.type,
-      isNew: true,
-    });
-
+    setResume(null);
     setManualMode(false);
+
+    toast.success("Resume selected successfully.");
   };
 
-  /* =========================================
-     REMOVE RESUME
-  ========================================= */
-
-  const removeResume = () => {
-    if (loading) return;
-
-    setResume(null);
+  const handleRemoveResume = () => {
     setSelectedFile(null);
+    setResume(null);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  /* =========================================
-     MANUAL MODE
-  ========================================= */
+  /* =====================================================
+     MANUAL FORM
+  ===================================================== */
 
-  const handleManualMode = () => {
-    if (loading) return;
-
-    removeResume();
-    setManualMode(true);
-  };
-
-  const handleManualChange = (event) => {
-    const { name, value } = event.target;
-
-    setManualDetails((previous) => ({
-      ...previous,
-      [name]: value,
+  const handleManualDetailsChange = (field, value) => {
+    setManualDetails((prev) => ({
+      ...prev,
+      [field]: value,
     }));
   };
 
-  /* =========================================
-     START INTERVIEW
-  ========================================= */
+  const handleManualMode = () => {
+    setManualMode(true);
+    setStep(1);
+  };
 
-  const handleStartInterview = async () => {
-    if (loading) {
-      return;
-    }
+  const handleResumeMode = () => {
+    setManualMode(false);
+    setStep(1);
+  };
 
-    const finalRole = role === "Other" ? customRole.trim() : role;
+  /* =====================================================
+     NEXT
+  ===================================================== */
 
-    if (!finalRole) {
-      toast.error("Please select your target job role.");
-      return;
-    }
-
-    if (!resume && !manualMode) {
-      toast.error("Please upload a resume or enter your details manually.");
+  const handleNext = () => {
+    if (!manualMode && !hasResume) {
+      toast.error("Please upload a resume or choose manual entry.");
       return;
     }
 
     if (manualMode && !manualDetails.name.trim()) {
-      toast.error("Please enter your name.");
+      toast.error("Please enter your full name.");
       return;
     }
 
-    const useExistingResume =
-      !manualMode && !selectedFile && !!resume && !resume.isNew;
+    if (manualMode && !manualDetails.skills.trim()) {
+      toast.error("Please enter your skills.");
+      return;
+    }
+
+    setStep(2);
+  };
+
+  /* =====================================================
+     START INTERVIEW
+  ===================================================== */
+
+  const handleStartInterview = async () => {
+    if (!finalRole) {
+      toast.error("Please select or enter your target job role.");
+      return;
+    }
+
+    if (!manualMode && !hasResume) {
+      toast.error("Please upload a resume first.");
+      return;
+    }
+
+    if (manualMode && !manualDetails.name.trim()) {
+      toast.error("Please enter your full name.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -167,7 +207,6 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
 
       if (!token) {
         toast.error("Authentication required. Please login again.");
-        navigate("/login");
         return;
       }
 
@@ -176,20 +215,16 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
       formData.append("role", finalRole);
       formData.append("interviewType", interviewType);
       formData.append("difficulty", difficulty);
-      formData.append("questionCount", String(questionCount));
-      formData.append("manualMode", String(manualMode));
-      formData.append("useExistingResume", String(useExistingResume));
+      formData.append("questionCount", questionCount);
+      formData.append("manualMode", manualMode);
+
+      formData.append(
+        "useExistingResume",
+        !manualMode && !selectedFile && Boolean(existingResume),
+      );
 
       if (manualMode) {
-        formData.append(
-          "manualDetails",
-          JSON.stringify({
-            name: manualDetails.name.trim(),
-            experience: manualDetails.experience,
-            skills: manualDetails.skills.trim(),
-            about: manualDetails.about.trim(),
-          }),
-        );
+        formData.append("manualDetails", JSON.stringify(manualDetails));
       }
 
       if (selectedFile) {
@@ -202,536 +237,684 @@ function InterviewSetup({ existingResume = null, onStartInterview }) {
         },
       });
 
-      if (!response.data?.success || !response.data?.data) {
-        toast.error("Unable to start the interview.");
-        return;
-      }
+      if (response.data.success) {
+        const interviewId = response.data.data?.interviewId;
 
-      const data = response.data.data;
+        if (onStartInterview) {
+          onStartInterview(response.data.data);
+        }
 
-      /*
-        Keep parent callback support if the parent
-        is already using onStartInterview.
-      */
-      if (onStartInterview) {
-        onStartInterview({
-          interviewId: data.interviewId,
-          questionNumber: data.questionNumber,
-          totalQuestions: data.totalQuestions,
-          question: data.question,
+        toast.success(
+          response.data.message || "Interview started successfully.",
+        );
+
+        navigate(`/interview/${interviewId}`, {
+          state: response.data.data,
         });
       }
-
-      toast.success("Interview started successfully.");
-
-      /*
-        Navigate only after the backend has successfully
-        created the interview and generated question 1.
-      */
-      navigate(`/interview/${data.interviewId}`, {
-        replace: true,
-        state: {
-          questionNumber: data.questionNumber,
-          totalQuestions: data.totalQuestions,
-          question: data.question,
-        },
-      });
     } catch (error) {
-      console.error("========== START INTERVIEW ERROR ==========");
-      console.error("Message:", error.message);
-      console.error("Response:", error.response);
-      console.error("Response Data:", error.response?.data);
-      console.error("Status:", error.response?.status);
-      console.error("============================================");
+      console.error("Start interview error:", error);
 
       toast.error(
         error.response?.data?.message ||
-          "Failed to start interview. Please try again.",
+          "Something went wrong while starting the interview.",
       );
     } finally {
-      setStartingInterview(false);
+      setLoading(false);
     }
   };
 
   return (
-    <main className="interview-setup-page">
+    <div className="interview-setup">
       <div className="interview-setup-container">
-        {/* =====================================
-            HEADER
-        ====================================== */}
+        {/* ================================================
+            COMPACT PAGE HEADER
+        ================================================= */}
 
-        <header className="setup-header">
-          <div className="setup-header-left">
-            <div className="setup-header-icon">
-              <i className="fa-solid fa-sparkles" />
-            </div>
+        <section className="setup-page-header">
+          <div className="setup-heading-content">
+            <p className="setup-eyebrow">INTERVIEW PREPARATION</p>
 
-            <div>
-              <div className="setup-eyebrow">INTERVIEW SETUP</div>
+            <h1>Setup Your Interview</h1>
 
-              <h1>Prepare for your interview</h1>
-
-              <p>Configure your interview before you begin.</p>
-            </div>
+            <p className="setup-page-description">
+              Customize your preferences and get ready for your AI-powered
+              interview.
+            </p>
           </div>
 
-          <div className="setup-step">
-            <span>STEP</span>
-            <strong>01</strong>
-            <small>/ 01</small>
-          </div>
-        </header>
-
-        {/* =====================================
-            MAIN TWO COLUMN AREA
-        ====================================== */}
-
-        <div className="setup-layout">
-          {/* ===================================
-              LEFT — RESUME / PROFILE
-          ==================================== */}
-
-          <section className="setup-panel resume-panel">
-            <div className="panel-header">
-              <div className="panel-title">
-                <div className="panel-icon">
-                  <i className="fa-solid fa-file-lines" />
-                </div>
-
-                <div>
-                  <h2>Your profile</h2>
-
-                  <p>Give your AI interviewer some context.</p>
-                </div>
-              </div>
-
-              <span className="panel-number">01</span>
+          <div className="setup-step-indicator">
+            <div
+              className={`setup-step-dot ${
+                step === 1 ? "active" : "completed"
+              }`}
+            >
+              {step === 2 ? <i className="fa-solid fa-check"></i> : "1"}
             </div>
 
-            {/* =================================
-                EXISTING RESUME
-            ================================== */}
+            <span></span>
 
-            {!manualMode && resume ? (
-              <div className="resume-content">
-                <div className="resume-preview">
-                  <div className="resume-document">
-                    <div className="resume-document-top">
-                      <span>PDF</span>
-                    </div>
+            <div className={`setup-step-dot ${step === 2 ? "active" : ""}`}>
+              2
+            </div>
+          </div>
+        </section>
 
-                    <i className="fa-solid fa-file-lines" />
-                  </div>
+        {/* ================================================
+            MAIN TWO COLUMN LAYOUT
+        ================================================= */}
 
-                  <div className="resume-info">
-                    <span className="resume-status">
-                      <i className="fa-solid fa-circle-check" />
-                      {resume.isNew ? "Ready to use" : "Previously uploaded"}
-                    </span>
+        <div className="setup-main-grid">
+          {/* =================================================
+              LEFT
+          ================================================= */}
 
-                    <h3>{resume.fileName}</h3>
+          <section className="setup-left-card">
+            {/* =================================================
+                STEP 1
+            ================================================= */}
 
-                    <p>PDF document</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="remove-resume-btn"
-                    onClick={removeResume}
-                    aria-label="Remove resume"
-                    disabled={loading}
-                  >
-                    <i className="fa-solid fa-xmark" />
-                  </button>
-                </div>
-
-                <div className="resume-note">
-                  <i className="fa-solid fa-wand-magic-sparkles" />
-
-                  <span>
-                    Your resume will help generate personalized interview
-                    questions.
-                  </span>
-                </div>
-
-                <div className="resume-actions">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="secondary-action"
-                    disabled={loading}
-                  >
-                    <i className="fa-solid fa-arrow-up-from-bracket" />
-                    Upload different resume
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleManualMode}
-                    className="text-action"
-                    disabled={loading}
-                  >
-                    Enter manually
-                    <i className="fa-solid fa-arrow-right" />
-                  </button>
-                </div>
-              </div>
-            ) : manualMode ? (
-              /* =================================
-                 MANUAL DETAILS
-              ================================== */
-
-              <div className="manual-content">
-                <div className="manual-heading">
+            {step === 1 && (
+              <div className="setup-step-content">
+                <div className="setup-card-header">
                   <div>
-                    <h3>Enter your details</h3>
+                    <span className="setup-section-step">STEP 1</span>
+
+                    <h2>
+                      {manualMode
+                        ? "Tell us about yourself"
+                        : "Prepare your interview"}
+                    </h2>
 
                     <p>
-                      No resume? You can still take a personalized interview.
+                      {manualMode
+                        ? "Provide a few details to personalize your interview."
+                        : "Use your existing resume or upload a new one."}
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="small-upload-btn"
-                    disabled={loading}
-                  >
-                    <i className="fa-solid fa-file-arrow-up" />
-                    Upload
-                  </button>
-                </div>
-
-                <div className="manual-fields">
-                  <div className="field">
-                    <label>
-                      Full name
-                      <span>*</span>
-                    </label>
-
-                    <input
-                      type="text"
-                      name="name"
-                      value={manualDetails.name}
-                      onChange={handleManualChange}
-                      placeholder="Your full name"
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label>Experience</label>
-
-                    <select
-                      name="experience"
-                      value={manualDetails.experience}
-                      onChange={handleManualChange}
-                      disabled={loading}
+                  {/* TOP RIGHT BUTTON */}
+                  {manualMode && (
+                    <button
+                      type="button"
+                      className="use-resume-btn"
+                      onClick={handleResumeMode}
                     >
-                      <option>Fresher</option>
-                      <option>0–1 years</option>
-                      <option>1–3 years</option>
-                      <option>3–5 years</option>
-                      <option>5+ years</option>
-                    </select>
-                  </div>
-
-                  <div className="field field-full">
-                    <label>Skills</label>
-
-                    <input
-                      type="text"
-                      name="skills"
-                      value={manualDetails.skills}
-                      onChange={handleManualChange}
-                      placeholder="React, JavaScript, Node.js..."
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="field field-full">
-                    <label>About you</label>
-
-                    <textarea
-                      name="about"
-                      value={manualDetails.about}
-                      onChange={handleManualChange}
-                      placeholder="Briefly describe yourself..."
-                      rows="4"
-                      disabled={loading}
-                    />
-                  </div>
+                      <i className="fa-solid fa-file-lines"></i>
+                      Use Resume
+                    </button>
+                  )}
                 </div>
 
-                <button
-                  type="button"
-                  className="back-resume-btn"
-                  onClick={() => setManualMode(false)}
-                  disabled={loading}
-                >
-                  <i className="fa-solid fa-arrow-left" />
-                  Back to resume
-                </button>
-              </div>
-            ) : (
-              /* =================================
-                 EMPTY RESUME
-              ================================== */
+                {!manualMode ? (
+                  <>
+                    {/* =========================
+                        RESUME
+                    ========================== */}
 
-              <div className="empty-resume">
-                <div className="empty-resume-icon">
-                  <i className="fa-solid fa-cloud-arrow-up" />
-                </div>
+                    <div className="resume-section">
+                      <div className="resume-section-heading">
+                        <div className="resume-heading-icon">
+                          <i className="fa-regular fa-file-lines"></i>
+                        </div>
 
-                <h3>Upload your resume</h3>
+                        <div>
+                          <h3>Your Resume</h3>
 
-                <p>PDF · Recommended</p>
+                          <p>
+                            Used to generate personalized interview questions.
+                          </p>
+                        </div>
+                      </div>
 
-                <button
-                  type="button"
-                  className="upload-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
-                >
-                  <i className="fa-solid fa-arrow-up-from-bracket" />
-                  Choose resume
-                </button>
+                      {hasResume ? (
+                        <div className="existing-resume-box">
+                          <div className="existing-resume-icon">
+                            <i className="fa-solid fa-file-pdf"></i>
+                          </div>
 
-                <div className="or-divider">
-                  <span>or</span>
-                </div>
+                          <div className="existing-resume-info">
+                            <span className="resume-status">
+                              {selectedFile
+                                ? "New Resume Selected"
+                                : "Current Resume"}
+                            </span>
 
-                <button
-                  type="button"
-                  className="manual-btn"
-                  onClick={handleManualMode}
-                  disabled={loading}
-                >
-                  Enter details manually
-                  <i className="fa-solid fa-arrow-right" />
-                </button>
+                            <strong>
+                              {displayedResumeName || "Resume.pdf"}
+                            </strong>
+
+                            <small>PDF • Ready to use</small>
+                          </div>
+
+                          <div className="resume-actions">
+                            <button
+                              type="button"
+                              className="resume-replace-btn"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <i className="fa-solid fa-arrow-up-from-bracket"></i>
+                              Replace
+                            </button>
+
+                            {selectedFile && (
+                              <button
+                                type="button"
+                                className="resume-remove-btn"
+                                onClick={handleRemoveResume}
+                              >
+                                <i className="fa-solid fa-xmark"></i>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className="resume-upload-box"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <div className="resume-upload-icon">
+                            <i className="fa-solid fa-cloud-arrow-up"></i>
+                          </div>
+
+                          <h3>Upload Your Resume</h3>
+
+                          <p>
+                            Drag and drop your PDF here
+                            <br />
+                            or click to browse
+                          </p>
+
+                          <span>Supported format: PDF</span>
+
+                          <button
+                            type="button"
+                            className="choose-file-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              fileInputRef.current?.click();
+                            }}
+                          >
+                            Choose File
+                          </button>
+                        </div>
+                      )}
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={handleResumeUpload}
+                        hidden
+                      />
+                    </div>
+
+                    {/* =========================
+                        DIVIDER
+                    ========================== */}
+
+                    <div className="setup-divider">
+                      <span></span>
+                      <p>OR</p>
+                      <span></span>
+                    </div>
+
+                    {/* =========================
+                        MANUAL ENTRY
+                    ========================== */}
+
+                    <div className="manual-entry-box">
+                      <div className="manual-entry-icon">
+                        <i className="fa-solid fa-pen-to-square"></i>
+                      </div>
+
+                      <div className="manual-entry-content">
+                        <h3>Prefer manual entry?</h3>
+
+                        <p>Enter your profile details manually.</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="manual-entry-btn"
+                        onClick={handleManualMode}
+                      >
+                        Enter Details
+                        <i className="fa-solid fa-arrow-right"></i>
+                      </button>
+                    </div>
+
+                    {/* =========================
+                        NEXT
+                    ========================== */}
+
+                    <div className="setup-footer-action">
+                      <button
+                        type="button"
+                        className="setup-primary-btn"
+                        onClick={handleNext}
+                        disabled={!hasResume}
+                      >
+                        Continue
+                        <i className="fa-solid fa-arrow-right"></i>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* =================================================
+                     MANUAL FORM
+                  ================================================= */
+
+                  <div className="manual-mode-content">
+                    <div className="manual-form">
+                      <div className="manual-field full-width">
+                        <label htmlFor="manual-name">Full Name</label>
+
+                        <input
+                          id="manual-name"
+                          type="text"
+                          placeholder="Enter your full name"
+                          value={manualDetails.name}
+                          onChange={(event) =>
+                            handleManualDetailsChange(
+                              "name",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+
+                      {/* NORMAL DROPDOWN */}
+                      <div className="manual-field">
+                        <label htmlFor="experience">Experience</label>
+
+                        <select
+                          id="experience"
+                          value={manualDetails.experience}
+                          onChange={(event) =>
+                            handleManualDetailsChange(
+                              "experience",
+                              event.target.value,
+                            )
+                          }
+                        >
+                          <option value="Fresher">Fresher</option>
+
+                          <option value="0-1 Years">0-1 Years</option>
+
+                          <option value="1-3 Years">1-3 Years</option>
+
+                          <option value="3-5 Years">3-5 Years</option>
+
+                          <option value="5+ Years">5+ Years</option>
+                        </select>
+                      </div>
+
+                      <div className="manual-field">
+                        <label htmlFor="manual-skills">Skills</label>
+
+                        <input
+                          id="manual-skills"
+                          type="text"
+                          placeholder="React, Node.js, MongoDB..."
+                          value={manualDetails.skills}
+                          onChange={(event) =>
+                            handleManualDetailsChange(
+                              "skills",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="manual-field full-width">
+                        <label htmlFor="manual-about">About You</label>
+
+                        <textarea
+                          id="manual-about"
+                          rows="4"
+                          placeholder="Tell us about yourself, your projects, interests or career goals..."
+                          value={manualDetails.about}
+                          onChange={(event) =>
+                            handleManualDetailsChange(
+                              "about",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="setup-footer-action">
+                      <button
+                        type="button"
+                        className="setup-primary-btn"
+                        onClick={handleNext}
+                      >
+                        Next
+                        <i className="fa-solid fa-arrow-right"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              onChange={handleFileChange}
-              hidden
-            />
+            {/* =================================================
+                STEP 2
+            ================================================= */}
+
+            {step === 2 && (
+              <div className="setup-step-content">
+                <div className="setup-card-header">
+                  <div>
+                    <span className="setup-section-step">STEP 2</span>
+
+                    <h2>Customize Your Interview</h2>
+
+                    <p>Select your interview style and difficulty.</p>
+                  </div>
+                </div>
+
+                {/* SELECTED SOURCE */}
+
+                <div className="selected-source-badge">
+                  <div className="selected-source-icon">
+                    <i
+                      className={
+                        manualMode
+                          ? "fa-solid fa-user-pen"
+                          : "fa-solid fa-file-circle-check"
+                      }
+                    ></i>
+                  </div>
+
+                  <div className="selected-source-info">
+                    <span>
+                      {manualMode ? "Manual Entry Selected" : "Resume Selected"}
+                    </span>
+
+                    <strong>
+                      {manualMode
+                        ? manualDetails.name || "Candidate details"
+                        : displayedResumeName || "Your Resume"}
+                    </strong>
+                  </div>
+
+                  <button type="button" onClick={() => setStep(1)}>
+                    Change
+                  </button>
+                </div>
+
+                {/* TARGET ROLE */}
+
+                <div className="setup-field-group">
+                  <div className="field-label-row">
+                    <label htmlFor="job-role">Target Job Role</label>
+
+                    <span>Required</span>
+                  </div>
+
+                  <select
+                    id="job-role"
+                    className="setup-normal-select"
+                    value={role}
+                    onChange={(event) => {
+                      setRole(event.target.value);
+
+                      if (event.target.value !== "Other") {
+                        setCustomRole("");
+                      }
+                    }}
+                  >
+                    <option value="">Select your target job role</option>
+
+                    {roleOptions.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+
+                  {role === "Other" && (
+                    <input
+                      type="text"
+                      className="setup-normal-input"
+                      placeholder="Enter your target job role"
+                      value={customRole}
+                      maxLength={100}
+                      onChange={(event) => setCustomRole(event.target.value)}
+                    />
+                  )}
+                </div>
+
+                {/* INTERVIEW TYPE */}
+
+                <div className="setup-field-group">
+                  <div className="field-label-row">
+                    <label>Interview Type</label>
+                  </div>
+
+                  <div className="option-grid">
+                    {interviewTypes.map((item) => (
+                      <button
+                        type="button"
+                        key={item.value}
+                        className={`option-card ${
+                          interviewType === item.value ? "selected" : ""
+                        }`}
+                        onClick={() => setInterviewType(item.value)}
+                      >
+                        <div className="option-card-icon">
+                          <i className={item.icon}></i>
+                        </div>
+
+                        <div className="option-card-content">
+                          <strong>{item.label}</strong>
+
+                          <span>{item.description}</span>
+                        </div>
+
+                        <div className="option-check">
+                          {interviewType === item.value && (
+                            <i className="fa-solid fa-check"></i>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DIFFICULTY */}
+
+                <div className="setup-field-group">
+                  <div className="field-label-row">
+                    <label>Difficulty Level</label>
+                  </div>
+
+                  <div className="difficulty-grid">
+                    {difficultyOptions.map((item) => (
+                      <button
+                        type="button"
+                        key={item.value}
+                        className={`difficulty-card ${
+                          difficulty === item.value
+                            ? `selected ${item.value}`
+                            : ""
+                        }`}
+                        onClick={() => setDifficulty(item.value)}
+                      >
+                        <strong>{item.label}</strong>
+
+                        <span>{item.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* QUESTIONS */}
+
+                <div className="setup-field-group">
+                  <div className="field-label-row">
+                    <label>Number of Questions</label>
+                  </div>
+
+                  <div className="question-grid">
+                    {questionOptions.map((count) => (
+                      <button
+                        type="button"
+                        key={count}
+                        className={`question-card ${
+                          questionCount === count ? "selected" : ""
+                        }`}
+                        onClick={() => setQuestionCount(count)}
+                      >
+                        <strong>{count}</strong>
+
+                        <span>Questions</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ACTIONS */}
+
+                <div className="step-two-actions">
+                  <button
+                    type="button"
+                    className="secondary-action-btn"
+                    onClick={() => setStep(1)}
+                  >
+                    <i className="fa-solid fa-arrow-left"></i>
+                    Back
+                  </button>
+
+                  <button
+                    type="button"
+                    className="setup-primary-btn start-btn"
+                    onClick={handleStartInterview}
+                    disabled={loading}
+                  >
+                    <i
+                      className={
+                        loading
+                          ? "fa-solid fa-spinner fa-spin"
+                          : "fa-solid fa-microphone"
+                      }
+                    ></i>
+
+                    {loading ? "Starting..." : "Start Interview"}
+
+                    {!loading && <i className="fa-solid fa-arrow-right"></i>}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
-          {/* ===================================
-              RIGHT — INTERVIEW SETTINGS
-          ==================================== */}
+          {/* =================================================
+              RIGHT CARD
+          ================================================= */}
 
-          <section className="setup-panel settings-panel">
-            <div className="panel-header">
-              <div className="panel-title">
-                <div className="panel-icon">
-                  <i className="fa-solid fa-sliders" />
+          <aside className="setup-right-card">
+            <div className="benefits-heading">
+              <div className="benefits-icon">
+                <i className="fa-solid fa-gift"></i>
+              </div>
+
+              <div>
+                <h3>What you'll get</h3>
+
+                <p>Everything you need for a realistic interview experience.</p>
+              </div>
+            </div>
+
+            <div className="benefits-list">
+              <div className="benefit-item">
+                <div className="benefit-check">
+                  <i className="fa-solid fa-check"></i>
                 </div>
 
                 <div>
-                  <h2>Interview settings</h2>
+                  <strong>AI Generated Questions</strong>
 
-                  <p>Choose how your interview should work.</p>
+                  <span>Questions personalized for your role.</span>
                 </div>
               </div>
 
-              <span className="panel-number">02</span>
-            </div>
+              <div className="benefit-item">
+                <div className="benefit-check">
+                  <i className="fa-solid fa-check"></i>
+                </div>
 
-            {/* =================================
-                ROLE
-            ================================== */}
+                <div>
+                  <strong>Voice Based Interview</strong>
 
-            <div className="field">
-              <label>
-                Target job role
-                <span>*</span>
-              </label>
+                  <span>Practice answering naturally with voice.</span>
+                </div>
+              </div>
 
-              <div className="select-box">
-                <i className="fa-solid fa-briefcase" />
+              <div className="benefit-item">
+                <div className="benefit-check">
+                  <i className="fa-solid fa-check"></i>
+                </div>
 
-                <select
-                  value={role}
-                  onChange={(event) => setRole(event.target.value)}
-                  disabled={loading}
-                >
-                  <option value="">Select your role</option>
+                <div>
+                  <strong>Real-time Evaluation</strong>
 
-                  {roleOptions.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
+                  <span>Get evaluated during your interview.</span>
+                </div>
+              </div>
 
-                <i className="fa-solid fa-chevron-down select-arrow" />
+              <div className="benefit-item">
+                <div className="benefit-check">
+                  <i className="fa-solid fa-check"></i>
+                </div>
+
+                <div>
+                  <strong>Detailed Feedback</strong>
+
+                  <span>Understand your strengths and weaknesses.</span>
+                </div>
+              </div>
+
+              <div className="benefit-item">
+                <div className="benefit-check">
+                  <i className="fa-solid fa-check"></i>
+                </div>
+
+                <div>
+                  <strong>Performance Report</strong>
+
+                  <span>Review your complete interview performance.</span>
+                </div>
               </div>
             </div>
 
-            {role === "Other" && (
-              <div className="field custom-role">
-                <label>
-                  Enter your role
-                  <span>*</span>
-                </label>
+            {/* =================================================
+                ILLUSTRATION
+                Replace src with your actual image
+            ================================================= */}
 
-                <input
-                  type="text"
-                  value={customRole}
-                  onChange={(event) => setCustomRole(event.target.value)}
-                  placeholder="e.g. Content Writer"
-                  disabled={loading}
-                />
-              </div>
-            )}
+            <div className="benefits-illustration">
+              <img
+                src="https://res.cloudinary.com/jwqnivpq/image/upload/v1789737353/left_img.png"
+                alt="AI interview illustration"
+              />
 
-            {/* =================================
-                INTERVIEW TYPE
-            ================================== */}
-
-            <div className="setting-block">
-              <div className="setting-heading">
-                <label>Interview type</label>
-
-                <span>Choose your focus</span>
-              </div>
-
-              <div className="type-grid">
-                {interviewTypes.map((item) => (
-                  <button
-                    type="button"
-                    key={item.value}
-                    className={`type-card ${
-                      interviewType === item.value ? "selected" : ""
-                    }`}
-                    onClick={() => setInterviewType(item.value)}
-                    disabled={loading}
-                  >
-                    <div className="type-card-icon">
-                      <i className={item.icon} />
-                    </div>
-
-                    <div className="type-card-content">
-                      <strong>{item.title}</strong>
-
-                      <span>{item.description}</span>
-                    </div>
-
-                    <div className="type-check">
-                      <i className="fa-solid fa-check" />
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <p>You can do it!</p>
             </div>
 
-            {/* =================================
-                DIFFICULTY
-            ================================== */}
+            <div className="secure-note">
+              <i className="fa-solid fa-shield-halved"></i>
 
-            <div className="setting-block">
-              <div className="setting-heading">
-                <label>Difficulty</label>
-
-                <span>Set the challenge level</span>
-              </div>
-
-              <div className="segmented-control">
-                {["easy", "medium", "hard"].map((item) => (
-                  <button
-                    type="button"
-                    key={item}
-                    className={difficulty === item ? "active" : ""}
-                    onClick={() => setDifficulty(item)}
-                    disabled={loading}
-                  >
-                    {item.charAt(0).toUpperCase() + item.slice(1)}
-                  </button>
-                ))}
-              </div>
+              <span>Your information is private and securely processed.</span>
             </div>
-
-            {/* =================================
-                QUESTIONS
-            ================================== */}
-
-            <div className="setting-block">
-              <div className="setting-heading">
-                <label>Number of questions</label>
-
-                <span>How long should it be?</span>
-              </div>
-
-              <div className="question-options">
-                {[5, 10, 15].map((number) => (
-                  <button
-                    type="button"
-                    key={number}
-                    className={questionCount === number ? "active" : ""}
-                    onClick={() => setQuestionCount(number)}
-                    disabled={loading}
-                  >
-                    <strong>{number}</strong>
-
-                    <span>
-                      {number === 5
-                        ? "Quick"
-                        : number === 10
-                          ? "Standard"
-                          : "Complete"}
-                    </span>
-
-                    {number === 10 && <small>Recommended</small>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* =====================================
-            BOTTOM ACTION
-        ====================================== */}
-
-        <div className="setup-footer">
-          <div className="privacy-info">
-            <div className="privacy-icon">
-              <i className="fa-solid fa-shield-halved" />
-            </div>
-
-            <div>
-              <strong>Private & secure</strong>
-
-              <span>Your interview data stays protected.</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="start-interview-btn"
-            onClick={handleStartInterview}
-            disabled={loading}
-          >
-            <span>{loading ? "Starting Interview..." : "Start Interview"}</span>
-
-            <i
-              className={
-                loading
-                  ? "fa-solid fa-spinner fa-spin"
-                  : "fa-solid fa-arrow-right"
-              }
-            />
-          </button>
+          </aside>
         </div>
       </div>
-    </main>
+    </div>
   );
-}
+};
 
 export default InterviewSetup;

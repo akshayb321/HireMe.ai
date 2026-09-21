@@ -9,6 +9,7 @@ import {
   completeInterview,
   getInterviewReport,
   getPastInterviews,
+  endInterview,
 } from "../controllers/interviewController.js";
 
 const interviewRouter = express.Router();
@@ -36,6 +37,13 @@ interviewRouter.post("/:id/answer", authMiddleware, submitAnswer);
 ========================================================= */
 
 interviewRouter.post("/:id/complete", authMiddleware, completeInterview);
+
+/* =========================================================
+end INTERVIEWS
+========================================================= */
+
+interviewRouter.patch("/:id/end", authMiddleware, endInterview);
+
 /* =========================================================
    GET PAST INTERVIEWS
 ========================================================= */

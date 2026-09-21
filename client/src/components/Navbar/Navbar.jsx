@@ -1,172 +1,100 @@
 import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import "./Navbar.css";
 
-const Navbar = () => {
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
+const Navbar = ({ onMenuClick }) => {
+  const [showNotification, setShowNotification] = useState(false);
 
-  // Logged-in user's full name from localStorage
   const userName = localStorage.getItem("username") || "User";
 
   const firstName = userName.split(" ")[0];
   const avatarLetter = userName.charAt(0).toUpperCase();
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
+  const handleNotificationClick = () => {
+    setShowNotification(true);
 
-    navigate("/auth/login");
-  };
-
-  const closeMenu = () => {
-    setMenuOpen(false);
+    setTimeout(() => {
+      setShowNotification(false);
+    }, 2000);
   };
 
   return (
     <header className="navbar">
       <div className="navbar-container">
         {/* =========================
-            BRAND - LEFT
+            MOBILE LEFT SECTION
         ========================= */}
-
-        <NavLink to="/dashboard" className="navbar-brand">
-          <div className="navbar-brand-icon">
-            <img
-              src="https://res.cloudinary.com/jwqnivpq/image/upload/v1789569626/ChatGPT_Image_Sep_16_2026_08_10_16_PM.png"
-              alt="HireMe.ai logo"
-            />
-          </div>
-
-          <h2>
-            HireMe <span>AI</span>
-          </h2>
-        </NavLink>
-
-        {/* =========================
-            DESKTOP CENTER NAVIGATION
-        ========================= */}
-
-        <nav className="navbar-center">
-          <div className="navbar-links">
-            <NavLink to="/dashboard" className="navbar-link">
-              Dashboard
-            </NavLink>
-
-            <NavLink to="/interviews" className="navbar-link">
-              Past Interviews
-            </NavLink>
-
-            <NavLink to="/ats-score" className="navbar-link">
-              ATS Score
-            </NavLink>
-          </div>
-
-          {/* Start Interview */}
-          <NavLink to="/interview-setup" className="navbar-start-btn">
-            <i className="fa-solid fa-microphone"></i>
-            <span>Start Interview</span>
-          </NavLink>
-        </nav>
-
-        {/* =========================
-            DESKTOP RIGHT
-        ========================= */}
-
-        <div className="navbar-right">
-          <div className="navbar-user">
-            <div className="navbar-avatar">{avatarLetter}</div>
-
-            <span>{firstName}</span>
-          </div>
-
-          <button
-            type="button"
-            className="navbar-logout-btn"
-            onClick={handleLogout}
-            aria-label="Logout"
-            title="Logout"
-          >
-            <i className="fa-solid fa-right-from-bracket"></i>
-          </button>
-        </div>
-
-        {/* =========================
-            MOBILE RIGHT
-        ========================= */}
-
-        <div className="navbar-mobile-right">
-          <div className="navbar-user">
-            <div className="navbar-avatar">{avatarLetter}</div>
-
-            <span>{userName}</span>
-          </div>
-
+        <div className="navbar-mobile-left">
+          {/* Menu */}
           <button
             type="button"
             className="navbar-menu-btn"
-            onClick={() => setMenuOpen((prev) => !prev)}
-            aria-label="Toggle menu"
+            onClick={onMenuClick}
+            aria-label="Open navigation menu"
+            title="Open menu"
           >
-            <i
-              className={menuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"}
-            ></i>
+            <i className="fa-solid fa-bars"></i>
           </button>
-        </div>
-      </div>
 
-      {/* =========================
-          MOBILE MENU
-      ========================= */}
-
-      {menuOpen && (
-        <div className="navbar-mobile-menu">
+          {/* Mobile Branding */}
           <NavLink
             to="/dashboard"
-            className="mobile-nav-link"
-            onClick={closeMenu}
+            className="navbar-mobile-brand"
+            aria-label="HireMe.ai Dashboard"
           >
-            <i className="fa-solid fa-house"></i>
-            <span>Dashboard</span>
-          </NavLink>
+            <div className="navbar-mobile-logo">
+              <img
+                src="https://res.cloudinary.com/jwqnivpq/image/upload/v1789569626/ChatGPT_Image_Sep_16_2026_08_10_16_PM.png"
+                alt="HireMe.ai logo"
+              />
+            </div>
 
-          <NavLink
-            to="/interviews"
-            className="mobile-nav-link"
-            onClick={closeMenu}
-          >
-            <i className="fa-solid fa-clock-rotate-left"></i>
-            <span>Past Interviews</span>
+            <h2>
+              HireMe <span>AI</span>
+            </h2>
           </NavLink>
-
-          <NavLink
-            to="/ats-score"
-            className="mobile-nav-link"
-            onClick={closeMenu}
-          >
-            <i className="fa-solid fa-file-circle-check"></i>
-            <span>ATS Score</span>
-          </NavLink>
-
-          <NavLink
-            to="/interview/new"
-            className="mobile-start-btn"
-            onClick={closeMenu}
-          >
-            <i className="fa-solid fa-microphone"></i>
-            <span>Start Interview</span>
-          </NavLink>
-
-          <button
-            type="button"
-            className="mobile-logout-btn"
-            onClick={handleLogout}
-          >
-            <i className="fa-solid fa-right-from-bracket"></i>
-            <span>Logout</span>
-          </button>
         </div>
-      )}
+
+        {/* =========================
+            RIGHT SECTION
+        ========================= */}
+        <div className="navbar-right">
+          {/* Notification */}
+          <div className="navbar-notification-wrapper">
+            <button
+              type="button"
+              className="navbar-icon-btn"
+              onClick={handleNotificationClick}
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              <i className="fa-regular fa-bell"></i>
+
+              <span className="navbar-notification-dot"></span>
+            </button>
+
+            {showNotification && (
+              <div className="navbar-notification-message">
+                <i className="fa-regular fa-bell-slash"></i>
+                <span>No new notifications</span>
+              </div>
+            )}
+          </div>
+
+          {/* User */}
+          <div className="navbar-user">
+            <div className="navbar-avatar">{avatarLetter}</div>
+
+            <div className="navbar-user-info">
+              <span className="navbar-user-name">{firstName}</span>
+
+              <span className="navbar-user-label">Candidate</span>
+            </div>
+
+            <i className="fa-solid fa-chevron-down navbar-user-chevron"></i>
+          </div>
+        </div>
+      </div>
     </header>
   );
 };

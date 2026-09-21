@@ -1,32 +1,181 @@
-/* =========================
-   MAIN LAYOUT
-========================= */
+/* =========================================================
+   HIREME.AI MAIN LAYOUT
+   Dark Navy Sidebar + Light Main Area
+========================================================= */
 
 .main-layout {
   min-height: 100vh;
+
   display: flex;
-  flex-direction: column;
-  background: #ffffff;
+
+  background: #f7f8fc;
+
+  color: #17203d;
 }
 
-/* =========================
+/* =========================================================
+   MAIN AREA
+========================================================= */
+
+.main-layout-area {
+  min-width: 0;
+  min-height: 100vh;
+
+  width: calc(100% - 260px);
+  margin-left: 260px;
+
+  display: flex;
+  flex-direction: column;
+
+  transition:
+    width 0.25s ease,
+    margin-left 0.25s ease;
+}
+
+/* =========================================================
+   COLLAPSED SIDEBAR
+========================================================= */
+
+.main-layout.sidebar-is-collapsed .main-layout-area {
+  width: calc(100% - 76px);
+  margin-left: 76px;
+}
+
+/* =========================================================
    PAGE CONTENT
-========================= */
+========================================================= */
 
 .main-layout-content {
   flex: 1;
+
   width: 100%;
-  padding-top: 76px;
+  box-sizing: border-box;
+
+  /*
+    Navbar is fixed/positioned above the content.
+    Reserve its height so page content never goes
+    underneath the navbar.
+  */
+  padding: 88px 28px 24px;
+
+  overflow-x: hidden;
 }
 
-@media (max-width: 950px) {
+/* =========================================================
+   MOBILE BACKDROP
+========================================================= */
+
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+/* =========================================================
+   LARGE SCREEN
+========================================================= */
+
+@media (min-width: 1200px) {
   .main-layout-content {
-    padding-top: 70px;
+    padding: 92px 32px 28px;
   }
 }
 
-@media (max-width: 600px) {
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+  .main-layout-area {
+    width: calc(100% - 240px);
+    margin-left: 240px;
+  }
+
+  .main-layout.sidebar-is-collapsed .main-layout-area {
+    width: calc(100% - 70px);
+    margin-left: 70px;
+  }
+
   .main-layout-content {
-    padding-top: 66px;
+    padding: 84px 20px 20px;
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+  .main-layout {
+    display: block;
+
+    min-height: 100vh;
+  }
+
+  /*
+    On mobile sidebar becomes an overlay.
+    Main content uses full width.
+  */
+
+  .main-layout-area,
+  .main-layout.sidebar-is-collapsed .main-layout-area {
+    width: 100%;
+
+    margin-left: 0;
+
+    min-height: 100vh;
+  }
+
+  .main-layout-content {
+    width: 100%;
+
+    /*
+      Navbar height is also reserved on mobile.
+    */
+    padding: 76px 16px 16px;
+  }
+
+  /*
+    Mobile backdrop
+  */
+
+  .mobile-sidebar-backdrop {
+    position: fixed;
+
+    inset: 0;
+
+    display: block;
+
+    background: rgba(5, 12, 35, 0.48);
+
+    backdrop-filter: blur(2px);
+
+    -webkit-backdrop-filter: blur(2px);
+
+    z-index: 950;
+
+    animation: backdropFadeIn 0.2s ease;
+  }
+}
+
+/* =========================================================
+   BACKDROP ANIMATION
+========================================================= */
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 420px) {
+  .main-layout-content {
+    padding: 74px 14px 14px;
   }
 }

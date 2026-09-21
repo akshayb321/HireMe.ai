@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../config/api.js";
+import ConfirmModal from "../../components/ConfirmModal/ConfirmModal";
 import "./LiveInterview.css";
 
 const LiveInterview = () => {
@@ -60,6 +61,8 @@ const LiveInterview = () => {
   const [answerScore, setAnswerScore] = useState(null);
 
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
+
+  const [showEndInterviewModal, setShowEndInterviewModal] = useState(false);
 
   const [loadingInterview, setLoadingInterview] = useState(
     !initialInterviewData.question,
@@ -128,7 +131,7 @@ const LiveInterview = () => {
 
         if (!token) {
           toast.error("Authentication required. Please login again.");
-          navigate("/login");
+          navigate("/auth/login");
           return;
         }
 
@@ -628,7 +631,7 @@ const LiveInterview = () => {
 
         setSubmittingAnswer(false);
 
-        navigate("/login");
+        navigate("/auth/login");
 
         return;
       }
@@ -829,32 +832,64 @@ const LiveInterview = () => {
      END INTERVIEW
   ========================================= */
 
-  const handleEndInterview = () => {
+  const handleEndInterview = async () => {
     if (submittingAnswer) {
       return;
     }
 
-    clearSequenceTimeouts();
+    try {
+      clearSequenceTimeouts();
 
-    if (isRecording) {
-      stopRecording();
-    }
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {
-        // Ignore cleanup errors.
+      if (isRecording) {
+        stopRecording();
       }
-    }
 
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // Ignore cleanup errors.
+        }
+      }
 
-    navigate("/interviews");
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        toast.error("Authentication required. Please login again.");
+        navigate("/auth/login");
+        return;
+      }
+
+      const response = await api.patch(
+        `/interviews/${id}/end`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to end interview");
+      }
+
+      toast.success("Interview ended successfully.");
+
+      navigate("/interviews");
+    } catch (error) {
+      console.error("End interview error:", error);
+
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to end interview. Please try again.",
+      );
+    }
   };
-
   /* =========================================
      CLEANUP
   ========================================= */
@@ -1049,10 +1084,6 @@ const LiveInterview = () => {
                   <span className="question-label feedback-label">
                     AI FEEDBACK
                   </span>
-
-                  {answerScore !== null && (
-                    <div className="answer-score">Score: {answerScore}/100</div>
-                  )}
 
                   <div className="ai-feedback">{aiFeedback}</div>
                 </div>
@@ -1317,11 +1348,7 @@ const LiveInterview = () => {
                 <span>
                   <strong>Answer submitted</strong>
 
-                  <small>
-                    {answerScore !== null
-                      ? `AI score: ${answerScore}/100`
-                      : "Your response has been captured."}
-                  </small>
+                  <small>Your response has been captured.</small>
                 </span>
               </div>
             )}
@@ -1342,7 +1369,7 @@ const LiveInterview = () => {
             <button
               type="button"
               className="end-btn"
-              onClick={handleEndInterview}
+              onClick={() => setShowEndInterviewModal(true)}
               disabled={submittingAnswer}
             >
               <i className="fa-solid fa-phone-slash" />
@@ -1350,6 +1377,23 @@ const LiveInterview = () => {
             </button>
           </div>
         </footer>
+
+        {/* =========================================
+            END INTERVIEW CONFIRMATION MODAL
+        ========================================= */}
+
+        <ConfirmModal
+          isOpen={showEndInterviewModal}
+          title="End Interview?"
+          message="Are you sure you want to end this interview? Your current interview session will be ended."
+          confirmText="End Interview"
+          cancelText="Continue Interview"
+          onCancel={() => setShowEndInterviewModal(false)}
+          onConfirm={() => {
+            setShowEndInterviewModal(false);
+            handleEndInterview();
+          }}
+        />
       </div>
     </div>
   );

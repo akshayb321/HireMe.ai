@@ -1,216 +1,463 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../../config/api.js";
+
 import "./Dashboard.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  // Temporary data
-  // Later API se aayega
-  const userName = "Akshay";
+  const [interviews, setInterviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const stats = [
-    {
-      value: "12",
-      label: "Interviews",
-    },
-    {
-      value: "78%",
-      label: "Average Score",
-    },
-    {
-      value: "82%",
-      label: "Last Interview",
-    },
-  ];
+  const userName = localStorage.getItem("username") || "User";
+  const firstName = userName.split(" ")[0];
 
-  const recentInterviews = [
-    {
-      id: "1",
-      role: "Frontend Developer",
-      date: "Sep 18, 2026",
-      score: "82%",
-    },
-    {
-      id: "2",
-      role: "MERN Stack Developer",
-      date: "Sep 15, 2026",
-      score: "76%",
-    },
-    {
-      id: "3",
-      role: "React Developer",
-      date: "Sep 12, 2026",
-      score: "74%",
-    },
-  ];
+  useEffect(() => {
+    const fetchInterviews = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const token = localStorage.getItem("token");
+
+        const response = await api.get("/interviews/past", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        /*
+          Supports:
+          response.data.data = [...]
+          response.data.data.interviews = [...]
+          response.data = [...]
+        */
+
+        const responseData = response.data?.data;
+
+        let interviewList = [];
+
+        if (Array.isArray(responseData)) {
+          interviewList = responseData;
+        } else if (Array.isArray(responseData?.interviews)) {
+          interviewList = responseData.interviews;
+        } else if (Array.isArray(response.data)) {
+          interviewList = response.data;
+        }
+
+        setInterviews(interviewList);
+      } catch (err) {
+        console.error("Failed to fetch interviews:", err);
+
+        if (err.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("username");
+          navigate("/auth/login");
+          return;
+        }
+
+        setError(
+          err.response?.data?.message ||
+            "Unable to load your interview history.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInterviews();
+  }, [navigate]);
+
+  /* =========================================================
+     DATA
+  ========================================================= */
+
+  const totalInterviews = interviews.length;
+
+  /*
+    Backend history should return latest interviews first.
+    We only show the first 5.
+  */
+  const recentInterviews = interviews.slice(0, 5);
+
+  const latestInterview = interviews[0];
+
+  /*
+    Score comes from finalReport.overallScore.
+    Fallbacks are kept so dashboard doesn't break if the
+    backend response contains the score directly.
+  */
+  const getScore = (interview) => {
+    if (!interview) return null;
+
+    return (
+      interview.finalReport?.overallScore ??
+      interview.overallScore ??
+      interview.score ??
+      null
+    );
+  };
+
+  const latestScore = getScore(latestInterview);
+
+  /* =========================================================
+     HELPERS
+  ========================================================= */
+
+  const formatDate = (date) => {
+    if (!date) return "—";
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "—";
+    }
+
+    return parsedDate.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatRole = (role) => {
+    if (!role) return "Interview";
+
+    return role
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const getStatusClass = (status) => {
+    const normalizedStatus = status?.toLowerCase();
+
+    if (normalizedStatus === "completed" || normalizedStatus === "complete") {
+      return "status-completed";
+    }
+
+    if (
+      normalizedStatus === "in-progress" ||
+      normalizedStatus === "in progress"
+    ) {
+      return "status-progress";
+    }
+
+    return "status-default";
+  };
+
+  const getStatusText = (status) => {
+    if (!status) return "Completed";
+
+    return status
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   const handleStartInterview = () => {
     navigate("/interview-setup");
   };
 
-  const handleUploadResume = () => {
-    // Temporary
-    // Actual resume upload API later add karenge
-    console.log("Upload resume");
+  const handleViewReport = (id) => {
+    if (!id) return;
+
+    navigate(`/interviews/${id}`);
   };
 
+  /* =========================================================
+     LOADING
+  ========================================================= */
+
+  if (loading) {
+    return (
+      <section className="dashboard-page">
+        <div className="dashboard-loading">
+          <div className="dashboard-spinner"></div>
+          <p>Loading your dashboard...</p>
+        </div>
+      </section>
+    );
+  }
+
+  /* =========================================================
+     DASHBOARD
+  ========================================================= */
+
   return (
-    <div className="dashboard">
-      <div className="dashboard-container">
-        {/* =========================
-            WELCOME SECTION
-        ========================= */}
+    <section className="dashboard-page">
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
-        <section className="dashboard-welcome">
+      <div className="dashboard-header">
+        <div className="dashboard-header-content">
+          <span className="dashboard-eyebrow">AI INTERVIEW PLATFORM</span>
+
+          <h1>
+            Welcome back, <span>{firstName}</span>
+          </h1>
+
+          <p>
+            Track your interview progress and continue improving your interview
+            performance.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="dashboard-header-button"
+          onClick={handleStartInterview}
+        >
+          <i className="fa-solid fa-plus"></i>
+          Start Interview
+        </button>
+      </div>
+
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
+
+      {error && (
+        <div className="dashboard-error">
+          <div className="dashboard-error-icon">
+            <i className="fa-solid fa-circle-exclamation"></i>
+          </div>
+
           <div>
-            <p className="dashboard-eyebrow">Your interview workspace</p>
+            <strong>Unable to load interviews</strong>
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
 
-            <h1>
-              Good morning, {userName} <span>👋</span>
-            </h1>
+      {/* =====================================================
+          STAT CARDS
+      ===================================================== */}
 
-            <p className="dashboard-subtitle">
-              Practice smarter, improve your skills, and become interview-ready
-              with AI.
+      <div className="dashboard-stats">
+        {/* TOTAL INTERVIEWS */}
+
+        <div className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon purple">
+              <i className="fa-solid fa-comments"></i>
+            </div>
+
+            <span className="dashboard-stat-label">All Time</span>
+          </div>
+
+          <div className="dashboard-stat-value">{totalInterviews}</div>
+
+          <p className="dashboard-stat-title">Total Interviews</p>
+
+          <p className="dashboard-stat-description">Interviews completed</p>
+        </div>
+
+        {/* RECENT INTERVIEW */}
+
+        <div className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon blue">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+
+            <span className="dashboard-stat-label">Latest</span>
+          </div>
+
+          <div className="dashboard-stat-recent">
+            {latestInterview
+              ? formatRole(latestInterview.role)
+              : "No interview"}
+          </div>
+
+          <p className="dashboard-stat-title">Recent Interview</p>
+
+          <p className="dashboard-stat-description">
+            {latestInterview
+              ? formatDate(latestInterview.createdAt || latestInterview.date)
+              : "Start your first interview"}
+          </p>
+        </div>
+
+        {/* RECENT SCORE */}
+
+        <div className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon green">
+              <i className="fa-solid fa-chart-line"></i>
+            </div>
+
+            <span className="dashboard-stat-label">Latest</span>
+          </div>
+
+          <div className="dashboard-stat-score">
+            {latestScore !== null ? `${latestScore}%` : "—"}
+          </div>
+
+          <p className="dashboard-stat-title">Recent Interview Score</p>
+
+          <p className="dashboard-stat-description">Overall interview score</p>
+        </div>
+      </div>
+
+      {/* =====================================================
+          START INTERVIEW CTA
+      ===================================================== */}
+
+      <div className="dashboard-interview-cta">
+        <div className="dashboard-cta-content">
+          <div className="dashboard-cta-icon">
+            <i className="fa-solid fa-microphone"></i>
+          </div>
+
+          <div className="dashboard-cta-text">
+            <span className="dashboard-cta-label">
+              READY FOR YOUR NEXT INTERVIEW?
+            </span>
+
+            <h2>Practice with your AI interviewer</h2>
+
+            <p>
+              Start a personalized mock interview and get detailed feedback on
+              your performance.
             </p>
           </div>
-        </section>
+        </div>
 
-        {/* =========================
-            QUICK ACTIONS
-        ========================= */}
+        <button
+          type="button"
+          className="dashboard-cta-button"
+          onClick={handleStartInterview}
+        >
+          Start Interview
+          <i className="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
 
-        <section className="dashboard-actions">
-          {/* Resume Card */}
-          <div className="dashboard-action-card">
-            <div className="dashboard-action-icon">
-              <i className="fa-regular fa-file-lines"></i>
-            </div>
+      {/* =====================================================
+          RECENT INTERVIEWS
+      ===================================================== */}
 
-            <div className="dashboard-action-content">
-              <h2>Upload Resume</h2>
+      <div className="dashboard-recent-section">
+        <div className="dashboard-section-header">
+          <div>
+            <span className="dashboard-section-eyebrow">YOUR ACTIVITY</span>
 
-              <p>
-                Upload your latest resume to get personalized interview
-                questions and feedback.
-              </p>
+            <h2>Recent Interviews</h2>
 
-              <button
-                type="button"
-                className="dashboard-secondary-btn"
-                onClick={handleUploadResume}
-              >
-                <i className="fa-solid fa-arrow-up-from-bracket"></i>
-                Upload Resume
-              </button>
-            </div>
+            <p>Your latest interview attempts and scores.</p>
           </div>
 
-          {/* Interview Card */}
-          <div className="dashboard-action-card dashboard-interview-card">
-            <div className="dashboard-action-icon">
-              <i className="fa-solid fa-microphone"></i>
-            </div>
-
-            <div className="dashboard-action-content">
-              <h2>Start Interview</h2>
-
-              <p>
-                Practice a realistic AI-powered interview based on your skills
-                and target role.
-              </p>
-
-              <button
-                type="button"
-                className="dashboard-primary-btn"
-                onClick={handleStartInterview}
-              >
-                <i className="fa-solid fa-microphone"></i>
-                Start Interview
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* =========================
-            PROGRESS
-        ========================= */}
-
-        <section className="dashboard-section">
-          <div className="dashboard-section-header">
-            <div>
-              <p className="dashboard-section-label">Your Progress</p>
-
-              <h2>Interview overview</h2>
-            </div>
-          </div>
-
-          <div className="dashboard-stats">
-            {stats.map((stat) => (
-              <div className="dashboard-stat-card" key={stat.label}>
-                <span className="dashboard-stat-value">{stat.value}</span>
-
-                <span className="dashboard-stat-label">{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* =========================
-            RECENT INTERVIEWS
-        ========================= */}
-
-        <section className="dashboard-section dashboard-recent-section">
-          <div className="dashboard-section-header dashboard-recent-header">
-            <div>
-              <p className="dashboard-section-label">Your Activity</p>
-
-              <h2>Recent Interviews</h2>
-            </div>
-
+          {totalInterviews > 0 && (
             <button
               type="button"
               className="dashboard-view-all"
               onClick={() => navigate("/interviews")}
             >
-              View all
+              View All
+              <i className="fa-solid fa-arrow-right"></i>
+            </button>
+          )}
+        </div>
+
+        {/* EMPTY STATE */}
+
+        {recentInterviews.length === 0 ? (
+          <div className="dashboard-empty">
+            <div className="dashboard-empty-icon">
+              <i className="fa-solid fa-microphone-lines"></i>
+            </div>
+
+            <h3>No interviews yet</h3>
+
+            <p>
+              Start your first AI interview to see your performance and score
+              here.
+            </p>
+
+            <button type="button" onClick={handleStartInterview}>
+              Start Your First Interview
               <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
+        ) : (
+          /* =================================================
+             INTERVIEW LIST
+          ================================================= */
 
-          <div className="dashboard-interviews-list">
-            {recentInterviews.map((interview) => (
-              <div className="dashboard-interview-row" key={interview.id}>
-                <div className="dashboard-interview-info">
-                  <div className="dashboard-interview-icon">
-                    <i className="fa-solid fa-briefcase"></i>
-                  </div>
+          <div className="dashboard-interview-list">
+            {recentInterviews.map((interview, index) => {
+              const interviewScore = getScore(interview);
 
-                  <div>
-                    <h3>{interview.role}</h3>
-                    <p>{interview.date}</p>
-                  </div>
-                </div>
+              const interviewId = interview._id || interview.id;
 
-                <div className="dashboard-interview-score">
-                  <span>{interview.score}</span>
-                  <small>Score</small>
-                </div>
+              const interviewRole = formatRole(interview.role);
 
-                <button
-                  type="button"
-                  className="dashboard-report-btn"
-                  onClick={() => navigate(`/interviews/${interview.id}`)}
+              const interviewDate = interview.createdAt || interview.date;
+
+              const interviewStatus = interview.status || "completed";
+
+              return (
+                <div
+                  className="dashboard-interview-row"
+                  key={interviewId || index}
                 >
-                  View Report
-                  <i className="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-            ))}
+                  {/* LEFT */}
+
+                  <div className="dashboard-interview-main">
+                    <div className="dashboard-interview-icon">
+                      <i className="fa-solid fa-microphone"></i>
+                    </div>
+
+                    <div className="dashboard-interview-info">
+                      <h3>{interviewRole}</h3>
+
+                      <div className="dashboard-interview-meta">
+                        <span>
+                          <i className="fa-regular fa-calendar"></i>
+                          {formatDate(interviewDate)}
+                        </span>
+
+                        <span
+                          className={`dashboard-status ${getStatusClass(
+                            interviewStatus,
+                          )}`}
+                        >
+                          {getStatusText(interviewStatus)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SCORE */}
+
+                  <div className="dashboard-interview-score">
+                    <span>Score</span>
+
+                    <strong>
+                      {interviewScore !== null ? `${interviewScore}%` : "—"}
+                    </strong>
+                  </div>
+
+                  {/* ACTION */}
+
+                  <button
+                    type="button"
+                    className="dashboard-report-button"
+                    onClick={() => handleViewReport(interviewId)}
+                    disabled={!interviewId}
+                  >
+                    View Report
+                    <i className="fa-solid fa-arrow-right"></i>
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        </section>
+        )}
       </div>
-    </div>
+    </section>
   );
 };
 
