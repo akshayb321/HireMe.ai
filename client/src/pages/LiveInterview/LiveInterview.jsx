@@ -28,16 +28,6 @@ const LiveInterview = () => {
     initialInterviewData.question || "",
   );
 
-  /*
-    question
-      -> Current question
-
-    feedback
-      -> AI feedback after answer
-
-    transition
-      -> AI transition before next question
-  */
   const [conversationPhase, setConversationPhase] = useState("question");
 
   const [aiState, setAiState] = useState("speaking");
@@ -69,6 +59,28 @@ const LiveInterview = () => {
   );
 
   /* =========================================
+     SPEECH RECOGNITION CONFIG
+  ========================================= */
+
+  /*
+    Experimental automatic restart threshold.
+
+    The user will NOT see this value anywhere in the UI.
+
+    After 35 FINAL words are recognized:
+    recognition.stop()
+        ↓
+    onend
+        ↓
+    120ms
+        ↓
+    new recognition.start()
+  */
+  const AUTO_RESTART_WORD_LIMIT = 35;
+
+  const AUTO_RESTART_DELAY = 120;
+
+  /* =========================================
      REFS
   ========================================= */
 
@@ -76,11 +88,65 @@ const LiveInterview = () => {
 
   const timerRef = useRef(null);
 
+  /*
+    Stores only confirmed/final speech.
+  */
   const finalTranscriptRef = useRef("");
+
+  /*
+    Stores the currently changing/interim speech.
+  */
+  const interimTranscriptRef = useRef("");
 
   const selectedVoiceRef = useRef(null);
 
   const sequenceTimeoutsRef = useRef([]);
+
+  /*
+    true = user currently wants voice recognition
+    to continue.
+  */
+  const shouldKeepListeningRef = useRef(false);
+
+  /*
+    Prevents multiple recognition.start() calls.
+  */
+  const isStartingRecognitionRef = useRef(false);
+
+  /*
+    Used for manual stop.
+  */
+  const manuallyStoppedRef = useRef(false);
+
+  /*
+    Used to invalidate old recognition instances.
+  */
+  const recognitionSessionRef = useRef(0);
+
+  /*
+    Counts FINAL words only inside the CURRENT
+    recognition segment.
+
+    Example:
+
+    Segment 1 -> 35 words -> restart
+    Segment 2 -> 35 words -> restart
+    Segment 3 -> 35 words -> restart
+  */
+  const segmentWordCountRef = useRef(0);
+
+  /*
+    true only when the recognition instance was
+    stopped automatically because the 35-word
+    threshold was reached.
+  */
+  const autoRestartRef = useRef(false);
+
+  /*
+    Stores the automatic restart timeout so it can
+    be cancelled during submit/end/unmount.
+  */
+  const autoRestartTimeoutRef = useRef(null);
 
   /* =========================================
      UTILITY
@@ -102,6 +168,31 @@ const LiveInterview = () => {
     sequenceTimeoutsRef.current = [];
   };
 
+  /*
+    Count words from recognized FINAL text.
+
+    We intentionally count only final speech because
+    interim results can change/repeat many times.
+  */
+  const countWords = (text) => {
+    if (!text || !text.trim()) {
+      return 0;
+    }
+
+    return text.trim().split(/\s+/).filter(Boolean).length;
+  };
+
+  /*
+    Cancel any pending automatic 35-word restart.
+  */
+  const clearAutoRestartTimeout = () => {
+    if (autoRestartTimeoutRef.current) {
+      clearTimeout(autoRestartTimeoutRef.current);
+
+      autoRestartTimeoutRef.current = null;
+    }
+  };
+
   /* =========================================
      LOAD INTERVIEW
   ========================================= */
@@ -113,11 +204,6 @@ const LiveInterview = () => {
         navigate("/interviews");
         return;
       }
-
-      /*
-        If interview data was passed through navigation state,
-        we already have the first question.
-      */
 
       if (initialInterviewData.question) {
         setLoadingInterview(false);
@@ -158,11 +244,6 @@ const LiveInterview = () => {
           setCurrentQuestion(interview.questions.length);
 
           setCurrentQuestionText(lastQuestion.question || "");
-
-          /*
-            If the latest question already has an answer,
-            show its feedback.
-          */
 
           if (lastQuestion.answer) {
             setAnswerSubmitted(true);
@@ -372,7 +453,388 @@ const LiveInterview = () => {
   ]);
 
   /* =========================================
-     SPEECH RECOGNITION
+     SPEECH RECOGNITION HELPERS
+  ========================================= */
+
+  const updateTranscriptDisplay = () => {
+    const finalText = finalTranscriptRef.current.trim();
+
+    const interimText = interimTranscriptRef.current.trim();
+
+    const combinedText = `${finalText} ${interimText}`.trim();
+
+    setTranscript(combinedText);
+  };
+
+  const getCurrentVoiceAnswer = () => {
+    const finalText = finalTranscriptRef.current.trim();
+
+    const interimText = interimTranscriptRef.current.trim();
+
+    return `${finalText} ${interimText}`.trim();
+  };
+
+  const createRecognition = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      return null;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true;
+
+    recognition.interimResults = true;
+
+    recognition.lang = "en-US";
+
+    return recognition;
+  };
+
+  /* =========================================
+     START / RESTART SPEECH RECOGNITION
+  ========================================= */
+
+  const startRecognitionInstance = () => {
+    if (!shouldKeepListeningRef.current) {
+      return;
+    }
+
+    if (conversationPhase !== "question") {
+      return;
+    }
+
+    if (answerSubmitted || submittingAnswer) {
+      return;
+    }
+
+    if (isStartingRecognitionRef.current) {
+      return;
+    }
+
+    const currentRecognition = recognitionRef.current;
+
+    /*
+      If recognition is already running, don't start
+      another recognition instance.
+    */
+    if (currentRecognition) {
+      return;
+    }
+
+    const recognition = createRecognition();
+
+    if (!recognition) {
+      toast.error(
+        "Speech recognition is not supported in this browser. Please use text mode.",
+      );
+
+      shouldKeepListeningRef.current = false;
+
+      setAnswerMode("text");
+
+      setIsRecording(false);
+
+      setAiState("ready");
+
+      return;
+    }
+
+    const sessionId = ++recognitionSessionRef.current;
+
+    isStartingRecognitionRef.current = true;
+
+    manuallyStoppedRef.current = false;
+
+    /*
+      Every new recognition instance gets its own
+      35-word segment counter.
+    */
+    segmentWordCountRef.current = 0;
+
+    /*
+      This is now a normal recognition instance.
+      Automatic restart becomes true only after
+      the 35-word threshold is reached.
+    */
+    autoRestartRef.current = false;
+
+    recognition.onstart = () => {
+      if (sessionId !== recognitionSessionRef.current) {
+        return;
+      }
+
+      isStartingRecognitionRef.current = false;
+
+      setIsRecording(true);
+
+      setAiState("listening");
+    };
+
+    recognition.onresult = (event) => {
+      if (sessionId !== recognitionSessionRef.current) {
+        return;
+      }
+
+      let newInterimText = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+
+        if (!result || !result[0]) {
+          continue;
+        }
+
+        const text = result[0].transcript.trim();
+
+        if (!text) {
+          continue;
+        }
+
+        if (result.isFinal) {
+          /*
+            FINAL result.
+
+            Add it permanently to the main transcript.
+          */
+          finalTranscriptRef.current =
+            `${finalTranscriptRef.current} ${text}`.trim();
+
+          /*
+            Count only FINAL words for the automatic
+            restart mechanism.
+          */
+          const finalWordCount = countWords(text);
+
+          segmentWordCountRef.current += finalWordCount;
+
+          /*
+            Once final speech is received, interim
+            speech for this event should not remain.
+          */
+          newInterimText = "";
+        } else {
+          /*
+            IMPORTANT:
+            Interim text is NOT appended permanently.
+
+            The browser may send the same interim phrase
+            multiple times.
+          */
+          newInterimText = `${newInterimText} ${text}`.trim();
+        }
+      }
+
+      interimTranscriptRef.current = newInterimText;
+
+      updateTranscriptDisplay();
+
+      /* =========================================
+         35-WORD AUTOMATIC RESTART
+      ========================================= */
+
+      if (
+        segmentWordCountRef.current >= AUTO_RESTART_WORD_LIMIT &&
+        shouldKeepListeningRef.current &&
+        !answerSubmitted &&
+        !submittingAnswer &&
+        conversationPhase === "question" &&
+        !autoRestartRef.current
+      ) {
+        /*
+          Mark this recognition instance as an
+          automatic restart.
+
+          IMPORTANT:
+          We do NOT display anything to the user.
+        */
+        autoRestartRef.current = true;
+
+        /*
+          Stop this recognition normally.
+
+          We intentionally use stop(), NOT abort(),
+          so the browser gets a chance to return any
+          final captured result before onend.
+        */
+        try {
+          recognition.stop();
+        } catch (error) {
+          console.error("Automatic 35-word recognition stop error:", error);
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      if (sessionId !== recognitionSessionRef.current) {
+        return;
+      }
+
+      console.error("Speech recognition error:", event.error);
+
+      isStartingRecognitionRef.current = false;
+
+      /*
+        Permission-related errors cannot be recovered
+        automatically.
+      */
+      if (
+        event.error === "not-allowed" ||
+        event.error === "service-not-allowed"
+      ) {
+        shouldKeepListeningRef.current = false;
+
+        autoRestartRef.current = false;
+
+        setIsRecording(false);
+
+        setAiState("error");
+
+        toast.error("Microphone permission is required for voice answers.");
+
+        return;
+      }
+
+      /*
+        "aborted" can happen during intentional stop.
+        Do nothing here.
+      */
+
+      if (event.error === "aborted") {
+        return;
+      }
+
+      /*
+        Other browser errors are logged only.
+
+        IMPORTANT:
+        We are NOT automatically restarting because of
+        onerror. Our current experiment is specifically
+        testing the 35-word restart strategy.
+      */
+    };
+
+    recognition.onend = () => {
+      if (sessionId !== recognitionSessionRef.current) {
+        return;
+      }
+
+      /*
+        Save whether this particular recognition instance
+        needs an automatic restart.
+      */
+      const shouldAutoRestart =
+        autoRestartRef.current &&
+        shouldKeepListeningRef.current &&
+        !manuallyStoppedRef.current &&
+        !answerSubmitted &&
+        !submittingAnswer &&
+        conversationPhase === "question";
+
+      /*
+        The current recognition instance is now finished.
+      */
+      recognitionRef.current = null;
+
+      isStartingRecognitionRef.current = false;
+
+      updateTranscriptDisplay();
+
+      /*
+        =========================================
+        AUTOMATIC 35-WORD RESTART
+        =========================================
+
+        This is the ONLY place where onend can
+        automatically start a new recognition instance.
+      */
+      if (shouldAutoRestart) {
+        /*
+          Reset the flag immediately so this instance
+          cannot accidentally trigger another restart.
+        */
+        autoRestartRef.current = false;
+
+        /*
+          Keep the UI exactly as it is.
+
+          No toast.
+          No "Restarting..." message.
+          No extra display.
+        */
+
+        clearAutoRestartTimeout();
+
+        autoRestartTimeoutRef.current = setTimeout(() => {
+          autoRestartTimeoutRef.current = null;
+
+          /*
+            User may have submitted/paused/ended during
+            the 120ms delay.
+          */
+          if (
+            !shouldKeepListeningRef.current ||
+            manuallyStoppedRef.current ||
+            answerSubmitted ||
+            submittingAnswer ||
+            conversationPhase !== "question"
+          ) {
+            return;
+          }
+
+          /*
+            Start a completely fresh recognition instance.
+
+            Existing finalTranscriptRef is NOT cleared.
+          */
+          startRecognitionInstance();
+        }, AUTO_RESTART_DELAY);
+
+        return;
+      }
+
+      /*
+        IMPORTANT:
+
+        If onend happens normally before 35 words,
+        we DO NOT automatically restart.
+
+        This is intentional for this experiment.
+      */
+      setIsRecording(false);
+
+      if (!submittingAnswer) {
+        setAiState("ready");
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error("Speech recognition start error:", error);
+
+      recognitionRef.current = null;
+
+      isStartingRecognitionRef.current = false;
+
+      /*
+        Do not automatically restart here.
+
+        We want this experiment to test specifically
+        the 35-word controlled restart.
+      */
+      setIsRecording(false);
+
+      setAiState("ready");
+    }
+  };
+
+  /* =========================================
+     START RECORDING
   ========================================= */
 
   const startRecording = () => {
@@ -389,111 +851,108 @@ const LiveInterview = () => {
       return;
     }
 
+    if (
+      answerSubmitted ||
+      submittingAnswer ||
+      conversationPhase !== "question"
+    ) {
+      return;
+    }
+
     /*
-      Stop any previous recognition instance.
+      Starting manually means:
+      - user wants recognition
+      - no automatic restart is currently pending
+      - old transcript must remain
     */
+    shouldKeepListeningRef.current = true;
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {
-        // Ignore cleanup error.
-      }
-    }
+    manuallyStoppedRef.current = false;
 
-    finalTranscriptRef.current = "";
+    autoRestartRef.current = false;
 
-    setTranscript("");
+    clearAutoRestartTimeout();
 
-    setRecordingSeconds(0);
+    /*
+      Only interim text from the previous recognition
+      instance is removed.
 
-    const recognition = new SpeechRecognition();
+      FINAL transcript remains untouched.
+    */
+    interimTranscriptRef.current = "";
 
-    recognition.continuous = true;
+    /*
+      Start a fresh 35-word segment.
+    */
+    segmentWordCountRef.current = 0;
 
-    recognition.interimResults = true;
+    updateTranscriptDisplay();
 
-    recognition.lang = "en-US";
+    setAiState("listening");
 
-    recognition.onstart = () => {
-      setIsRecording(true);
-
-      setAiState("listening");
-    };
-
-    recognition.onresult = (event) => {
-      let interimText = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const text = event.results[i][0].transcript;
-
-        if (event.results[i].isFinal) {
-          finalTranscriptRef.current += `${text} `;
-        } else {
-          interimText += text;
-        }
-      }
-
-      const finalText = finalTranscriptRef.current.trim();
-
-      setTranscript(`${finalText} ${interimText}`.trim());
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-
-      setIsRecording(false);
-
-      setAiState("ready");
-
-      if (event.error === "not-allowed") {
-        toast.error("Microphone permission is required for voice answers.");
-      }
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-
-      const finalText = finalTranscriptRef.current.trim();
-
-      if (finalText) {
-        setTranscript(finalText);
-      }
-
-      setAiState("ready");
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-    } catch (error) {
-      console.error("Speech recognition start error:", error);
-
-      setIsRecording(false);
-
-      setAiState("ready");
-    }
+    startRecognitionInstance();
   };
 
+  /* =========================================
+     STOP / PAUSE RECORDING
+  ========================================= */
+
   const stopRecording = () => {
-    if (recognitionRef.current) {
+    /*
+      User intentionally pressed the microphone button.
+
+      Therefore:
+      NO automatic restart.
+    */
+    shouldKeepListeningRef.current = false;
+
+    manuallyStoppedRef.current = true;
+
+    autoRestartRef.current = false;
+
+    clearAutoRestartTimeout();
+
+    /*
+      Preserve everything currently available.
+    */
+    const currentAnswer = getCurrentVoiceAnswer();
+
+    if (currentAnswer) {
+      setTranscript(currentAnswer);
+    }
+
+    interimTranscriptRef.current = "";
+
+    const recognition = recognitionRef.current;
+
+    if (recognition) {
+      /*
+        Invalidate the recognition session BEFORE stopping it.
+
+        Therefore its onend cannot trigger an automatic restart.
+      */
+      recognitionRef.current = null;
+
+      recognitionSessionRef.current += 1;
+
       try {
-        recognitionRef.current.stop();
+        recognition.stop();
       } catch {
-        // Ignore cleanup error.
+        try {
+          recognition.abort();
+        } catch {
+          // Ignore cleanup error.
+        }
       }
     }
+
+    isStartingRecognitionRef.current = false;
+
+    segmentWordCountRef.current = 0;
 
     setIsRecording(false);
 
     setAiState("ready");
-
-    const finalText = finalTranscriptRef.current.trim();
-
-    if (finalText) {
-      setTranscript(finalText);
-    }
   };
 
   /* =========================================
@@ -530,8 +989,7 @@ const LiveInterview = () => {
 
   const hasAnswer =
     answerMode === "voice"
-      ? transcript.trim().length > 0 ||
-        finalTranscriptRef.current.trim().length > 0
+      ? getCurrentVoiceAnswer().trim().length > 0
       : typedAnswer.trim().length > 0;
 
   /* =========================================
@@ -539,6 +997,39 @@ const LiveInterview = () => {
   ========================================= */
 
   const resetAnswerState = () => {
+    /*
+      Stop any previous recognition completely.
+    */
+    shouldKeepListeningRef.current = false;
+
+    manuallyStoppedRef.current = true;
+
+    autoRestartRef.current = false;
+
+    clearAutoRestartTimeout();
+
+    if (recognitionRef.current) {
+      const oldRecognition = recognitionRef.current;
+
+      recognitionRef.current = null;
+
+      recognitionSessionRef.current += 1;
+
+      try {
+        oldRecognition.abort();
+      } catch {
+        // Ignore cleanup error.
+      }
+    }
+
+    isStartingRecognitionRef.current = false;
+
+    segmentWordCountRef.current = 0;
+
+    interimTranscriptRef.current = "";
+
+    finalTranscriptRef.current = "";
+
     setTranscript("");
 
     setTypedAnswer("");
@@ -553,7 +1044,7 @@ const LiveInterview = () => {
 
     setRecordingSeconds(0);
 
-    finalTranscriptRef.current = "";
+    setIsRecording(false);
   };
 
   /* =========================================
@@ -589,29 +1080,42 @@ const LiveInterview = () => {
     }
 
     /*
-      Stop recording before submitting.
+      Permanently stop automatic recognition restart
+      before submitting.
     */
+    shouldKeepListeningRef.current = false;
 
-    if (isRecording) {
+    manuallyStoppedRef.current = true;
+
+    autoRestartRef.current = false;
+
+    clearAutoRestartTimeout();
+
+    /*
+      Capture complete answer BEFORE stopping recognition.
+    */
+    const voiceAnswerBeforeStop = getCurrentVoiceAnswer();
+
+    /*
+      Stop recording.
+    */
+    if (isRecording || recognitionRef.current) {
       stopRecording();
     }
 
     /*
       Stop any currently playing question speech.
     */
-
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
 
     /*
-      For voice mode, prefer the final transcript ref.
-      This prevents losing the latest speech result.
+      Use captured answer.
     */
-
     const answer =
       answerMode === "voice"
-        ? (finalTranscriptRef.current.trim() || transcript.trim()).trim()
+        ? voiceAnswerBeforeStop.trim()
         : typedAnswer.trim();
 
     if (!answer) {
@@ -660,9 +1164,9 @@ const LiveInterview = () => {
 
       const data = response.data.data;
 
-      /*
-        Store evaluation data.
-      */
+      /* =========================================
+         STORE EVALUATION DATA
+      ========================================= */
 
       setAnswerSubmitted(true);
 
@@ -683,27 +1187,12 @@ const LiveInterview = () => {
           data.transition ||
           "That completes your interview. Let's review your results.";
 
-        /*
-          IMPORTANT:
-          First render FEEDBACK UI.
-        */
-
         setConversationPhase("feedback");
 
         setAiState("speaking");
 
-        /*
-          Small delay ensures React renders
-          feedback before speech starts.
-        */
-
         addSequenceTimeout(() => {
           speakText(feedbackSpeech, () => {
-            /*
-              Feedback finished.
-              Wait before transition.
-            */
-
             addSequenceTimeout(() => {
               setConversationPhase("transition");
 
@@ -711,17 +1200,8 @@ const LiveInterview = () => {
 
               setAiTransition(transitionSpeech);
 
-              /*
-                Give React time to render transition UI.
-              */
-
               addSequenceTimeout(() => {
                 speakText(transitionSpeech, () => {
-                  /*
-                    Interview completed.
-                    Open report after a short pause.
-                  */
-
                   addSequenceTimeout(() => {
                     setSubmittingAnswer(false);
 
@@ -761,30 +1241,21 @@ const LiveInterview = () => {
       const transitionSpeech =
         data.transition || "Let's move on to the next question.";
 
-      /*
-        =========================================
-        STEP 1
-        SHOW FEEDBACK UI
-        =========================================
-      */
+      /* =========================================
+         STEP 1
+         SHOW FEEDBACK UI
+      ========================================= */
 
       setConversationPhase("feedback");
 
       setAiState("speaking");
 
-      /*
-        IMPORTANT:
-        Feedback UI is rendered BEFORE speech.
-      */
-
       addSequenceTimeout(() => {
         speakText(feedbackSpeech, () => {
-          /*
-            =========================================
-            STEP 2
-            SHOW TRANSITION UI
-            =========================================
-          */
+          /* =========================================
+             STEP 2
+             SHOW TRANSITION UI
+          ========================================= */
 
           addSequenceTimeout(() => {
             setConversationPhase("transition");
@@ -793,18 +1264,12 @@ const LiveInterview = () => {
 
             setAiTransition(transitionSpeech);
 
-            /*
-              Give React time to render transition UI.
-            */
-
             addSequenceTimeout(() => {
               speakText(transitionSpeech, () => {
-                /*
-                  =========================================
-                  STEP 3
-                  SHOW NEXT QUESTION
-                  =========================================
-                */
+                /* =========================================
+                   STEP 3
+                   SHOW NEXT QUESTION
+                ========================================= */
 
                 addSequenceTimeout(() => {
                   moveToNextQuestion(nextQuestion, nextQuestionNumber);
@@ -840,17 +1305,36 @@ const LiveInterview = () => {
     try {
       clearSequenceTimeouts();
 
-      if (isRecording) {
-        stopRecording();
-      }
+      /*
+        Permanently disable automatic restart.
+      */
+      shouldKeepListeningRef.current = false;
+
+      manuallyStoppedRef.current = true;
+
+      autoRestartRef.current = false;
+
+      clearAutoRestartTimeout();
 
       if (recognitionRef.current) {
+        const recognition = recognitionRef.current;
+
+        recognitionRef.current = null;
+
+        recognitionSessionRef.current += 1;
+
         try {
-          recognitionRef.current.abort();
+          recognition.abort();
         } catch {
           // Ignore cleanup errors.
         }
       }
+
+      isStartingRecognitionRef.current = false;
+
+      segmentWordCountRef.current = 0;
+
+      setIsRecording(false);
 
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -880,7 +1364,7 @@ const LiveInterview = () => {
 
       toast.success("Interview ended successfully.");
 
-      navigate("/interviews");
+      navigate(`/interviews/${id}`);
     } catch (error) {
       console.error("End interview error:", error);
 
@@ -890,23 +1374,44 @@ const LiveInterview = () => {
       );
     }
   };
+
   /* =========================================
      CLEANUP
   ========================================= */
 
   useEffect(() => {
     return () => {
+      shouldKeepListeningRef.current = false;
+
+      manuallyStoppedRef.current = true;
+
+      autoRestartRef.current = false;
+
+      clearAutoRestartTimeout();
+
       clearInterval(timerRef.current);
 
       clearSequenceTimeouts();
 
       if (recognitionRef.current) {
+        const recognition = recognitionRef.current;
+
+        recognitionRef.current = null;
+
+        recognitionSessionRef.current += 1;
+
         try {
-          recognitionRef.current.abort();
+          recognition.abort();
         } catch {
           // Ignore cleanup errors.
         }
       }
+
+      isStartingRecognitionRef.current = false;
+
+      segmentWordCountRef.current = 0;
+
+      interimTranscriptRef.current = "";
 
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();

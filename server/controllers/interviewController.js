@@ -688,6 +688,10 @@ export const completeInterview = async (req, res) => {
 /* =========================================================
    END INTERVIEW
 ========================================================= */
+/* =========================================================
+   END INTERVIEW
+========================================================= */
+
 export const endInterview = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -705,24 +709,109 @@ export const endInterview = async (req, res) => {
       });
     }
 
+    /* -------------------------------------------------------
+       ALREADY COMPLETED
+    ------------------------------------------------------- */
+
     if (interview.status === "completed") {
       return res.status(200).json({
         success: true,
         message: "Interview is already completed",
+        data: {
+          interviewId: interview._id,
+          overallScore: interview.overallScore,
+        },
       });
     }
 
+    /* -------------------------------------------------------
+       CHECK ANSWERED QUESTIONS
+    ------------------------------------------------------- */
+
+    const answeredQuestions = interview.questions.filter(
+      (question) =>
+        question.answer?.trim() && typeof question.score === "number",
+    );
+
+    if (answeredQuestions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please answer at least one question before ending the interview",
+      });
+    }
+
+    /* -------------------------------------------------------
+       GENERATE FINAL REPORT
+    ------------------------------------------------------- */
+
+    const finalReportPrompt = buildFinalReportPrompt(
+      interview.role,
+      interview.interviewType,
+      interview.difficulty,
+      answeredQuestions,
+    );
+
+    const result = await model.generateContent(finalReportPrompt);
+
+    const responseText = result.response.text();
+
+    const reportData = parseAIJson(responseText);
+
+    /* -------------------------------------------------------
+       VALIDATE FINAL REPORT
+    ------------------------------------------------------- */
+
+    if (
+      typeof reportData.overallScore !== "number" ||
+      typeof reportData.technicalScore !== "number" ||
+      typeof reportData.communicationScore !== "number" ||
+      typeof reportData.problemSolvingScore !== "number"
+    ) {
+      return res.status(500).json({
+        success: false,
+        message: "AI failed to generate the final interview report",
+      });
+    }
+
+    /* -------------------------------------------------------
+       SAVE FINAL REPORT
+    ------------------------------------------------------- */
+
+    interview.overallScore = reportData.overallScore;
+
+    interview.technicalScore = reportData.technicalScore;
+
+    interview.communicationScore = reportData.communicationScore;
+
+    interview.problemSolvingScore = reportData.problemSolvingScore;
+
+    interview.summary = reportData.summary || "";
+
+    interview.strengths = reportData.strengths || [];
+
+    interview.improvements = reportData.improvements || [];
+
     interview.status = "completed";
+
     interview.completedAt = new Date();
 
     await interview.save();
 
+    /* -------------------------------------------------------
+       RESPONSE
+    ------------------------------------------------------- */
+
     return res.status(200).json({
       success: true,
-      message: "Interview ended successfully",
+      message: "Interview ended and final report generated successfully",
       data: {
         interviewId: interview._id,
         status: interview.status,
+        overallScore: interview.overallScore,
+        technicalScore: interview.technicalScore,
+        communicationScore: interview.communicationScore,
+        problemSolvingScore: interview.problemSolvingScore,
       },
     });
   } catch (error) {
@@ -730,7 +819,7 @@ export const endInterview = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to end interview",
+      message: "Failed to end interview and generate final report",
     });
   }
 };
