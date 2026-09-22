@@ -146,7 +146,7 @@ const Sidebar = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
           }
           title={collapsed ? "Past Interviews" : ""}
         >
-          <i class="fa-solid fa-clock"></i>
+          <i className="fa-solid fa-clock"></i>
 
           {!collapsed && <span>Past Interviews</span>}
         </NavLink>

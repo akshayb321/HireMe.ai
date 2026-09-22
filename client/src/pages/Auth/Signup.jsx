@@ -258,6 +258,16 @@ function Signup() {
         </div>
         {/* Right Section */}
         <div className="auth-right">
+          <div className="auth-mobile-brand">
+            <img
+              src="https://res.cloudinary.com/jwqnivpq/image/upload/v1789569626/ChatGPT_Image_Sep_16_2026_08_10_16_PM.png"
+              alt="HireMe.ai Logo"
+            />
+            <span>
+              HireMe <span>AI</span>
+            </span>
+          </div>
+
           <div className="auth-card signup-card">
             <div className="auth-header">
               <h1>Create Account</h1>
@@ -336,7 +346,8 @@ function Signup() {
 
                   <div className="auth-bottom">
                     <p>
-                      Already have an account? <Link to="/login">Login</Link>
+                      Already have an account?{" "}
+                      <Link to="/auth/login">Login</Link>
                     </p>
                   </div>
                 </>

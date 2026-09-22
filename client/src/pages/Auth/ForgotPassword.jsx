@@ -173,7 +173,7 @@ function ForgotPassword() {
 
       toast.success(response.data.message || "Password reset successfully");
 
-      navigate("/login");
+      navigate("/auth/login");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to reset password");
     } finally {
@@ -246,6 +246,15 @@ function ForgotPassword() {
 
         {/* Right Section */}
         <div className="auth-right">
+          <div className="auth-mobile-brand">
+            <img
+              src="https://res.cloudinary.com/jwqnivpq/image/upload/v1789569626/ChatGPT_Image_Sep_16_2026_08_10_16_PM.png"
+              alt="HireMe.ai Logo"
+            />
+            <span>
+              HireMe <span>AI</span>
+            </span>
+          </div>
           <div className="auth-card forgot-password-card">
             <div className="auth-header">
               <h1>Forgot Password?</h1>
@@ -475,7 +484,7 @@ function ForgotPassword() {
 
             <div className="auth-bottom">
               <p>
-                Remember your password? <Link to="/login">Login</Link>
+                Remember your password? <Link to="/auth/login">Login</Link>
               </p>
             </div>
           </div>

@@ -130,6 +130,15 @@ function Login() {
             ===================================================== */}
 
         <div className="auth-right">
+          <div className="auth-mobile-brand">
+            <img
+              src="https://res.cloudinary.com/jwqnivpq/image/upload/v1789569626/ChatGPT_Image_Sep_16_2026_08_10_16_PM.png"
+              alt="HireMe.ai Logo"
+            />
+            <span>
+              HireMe <span>AI</span>
+            </span>
+          </div>
           <div className="auth-card login-card">
             <div className="auth-header">
               <h1>Welcome Back!</h1>
@@ -189,7 +198,7 @@ function Login() {
 
               {/* Forgot Password */}
               <div className="auth-forgot">
-                <Link to="/forgot-password">Forgot Password?</Link>
+                <Link to="/auth/forgot-password">Forgot Password?</Link>
               </div>
 
               {/* Submit */}
@@ -214,7 +223,7 @@ function Login() {
 
             <div className="auth-bottom">
               <p>
-                Don't have an account? <Link to="/signup">Sign up</Link>
+                Don't have an account? <Link to="/auth/signup">Sign up</Link>
               </p>
             </div>
           </div>

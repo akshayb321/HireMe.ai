@@ -259,7 +259,7 @@ const Dashboard = () => {
         <div className="dashboard-stat-card">
           <div className="dashboard-stat-top">
             <div className="dashboard-stat-icon blue">
-              <i class="fa-solid fa-clock"></i>
+              <i className="fa-solid fa-clock"></i>
             </div>
 
             <span className="dashboard-stat-label">Latest</span>

@@ -6,10 +6,11 @@ import api from "../../config/api.js";
 import "./InterviewSetup.css";
 
 const roleOptions = [
+  "Full Stack MERN Developer",
   "Frontend Developer",
   "Backend Developer",
-  "Full Stack Developer",
-  "MERN Stack Developer",
+  "Node.js Developer",
+  "Software Developer",
   "Java Developer",
   "Python Developer",
   "Data Analyst",

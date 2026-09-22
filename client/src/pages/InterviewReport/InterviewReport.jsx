@@ -30,7 +30,7 @@ const InterviewReport = () => {
 
         if (!token) {
           toast.error("Authentication required. Please login again.");
-          navigate("/login");
+          navigate("/auth/login");
           return;
         }
 
